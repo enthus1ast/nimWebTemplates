@@ -76,7 +76,19 @@ iterator nwtTokenize(s: string): Token =
     var stringToken = ""
 
     ## BUG  BUG 
-    pos = buffer.parseUntil(stringToken,'{',pos) + pos
+    # var sss = ""
+    # while true:
+    #   pos = buffer.parseUntil(stringToken,'{',pos) + pos
+    #   if buffer.continuesWith("%", pos) or 
+    #      buffer.continuesWith("{", pos) or 
+    #      buffer.continuesWith("#", pos):
+
+    #     break
+    #   elif buffer.len >= pos:
+    #     yield newToken(NwtString, sss)
+    #     sss = ""
+    #     break
+    #   sss.add stringToken
     ## TODO BUG BUG BUG BUG we have to while here
     
     # if stringToken != "":
@@ -113,7 +125,6 @@ iterator nwtTokenize(s: string): Token =
         pos.inc # skip }
         yield newToken(NwtEval, stringToken[0..^1].strip()) # really need to strip? 
     else:
-      # yield newToken(NwtString, "{")
       if pos > buffer.len:
         constructedString.add(stringToken)
       else:
@@ -246,8 +257,8 @@ when isMainModule:
 #   # ss.add each.toStr( newStringTable({"name":"name"}))
 #
 
-  # echo toSeq(nwtTokenize("hello"))
-  # quit()
+  echo toSeq(nwtTokenize("hello"))
+  quit()
 
   ## Tokenize tests
   assert toSeq(nwtTokenize("hello")) == @[newToken(NwtString, "hello")]
@@ -269,6 +280,8 @@ when isMainModule:
   assert toSeq(nwtTokenize("{nope}")) == @[newToken(NwtString, "{nope}")]
   assert toSeq(nwtTokenize("{nope")) == @[newToken(NwtString, "{nope")]
   assert toSeq(nwtTokenize("nope}")) == @[newToken(NwtString, "nope}")]
+  assert toSeq(nwtTokenize("{")) == @[newToken(NwtString, "{")]
+  assert toSeq(nwtTokenize("}")) == @[newToken(NwtString, "}")]
 
   assert toSeq(nwtTokenize("foo {baa}")) == @[newToken(NwtString, "foo {baa}")]
 
