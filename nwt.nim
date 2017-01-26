@@ -270,6 +270,13 @@ when isMainModule:
   assert toSeq(nwtTokenize("{nope")) == @[newToken(NwtString, "{nope")]
   assert toSeq(nwtTokenize("nope}")) == @[newToken(NwtString, "nope}")]
 
+  assert toSeq(nwtTokenize("foo {baa}")) == @[newToken(NwtString, "foo {baa}")]
+
+  echo toSeq(nwtTokenize("foo {{baa}} {baa}"))
+  assert toSeq(nwtTokenize("foo {{baa}} {baa}")) == @[newToken(NwtString, "foo "), 
+                                                      newToken(NwtVariable, "baa"),
+                                                      newToken(NwtString, " {baa}")]
+ 
   ## extractTemplateName tests
   assert extractTemplateName("""extends "foobaa.html" """) == "foobaa.html"
   assert extractTemplateName("""extends "foobaa.html"""") == "foobaa.html"
@@ -289,6 +296,24 @@ when isMainModule:
     var tokens = toSeq(nwtTokenize("""{%extends "foobaa.html" %}{% extends 'goo.html' %}""")) 
     assert extractTemplateName(tokens[0].value) == "foobaa.html"
     assert extractTemplateName(tokens[1].value) == "goo.html"
+
+
+  block:
+    let tst = """<html>
+        <head>
+          <title>engine</title>
+        </head>
+        <body>
+        <style>
+          
+        </style>
+          <h1>Welcome from baseasdfasdf</h1>
+          <div id="content">
+          </div>
+        </body>
+      </html>""" 
+    for each in nwtTokenize(tst):
+      echo each
 
 
   ## fillBlock tests
