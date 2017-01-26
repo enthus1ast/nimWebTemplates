@@ -63,41 +63,21 @@ iterator nwtTokenize(s: string): Token =
     buffer: string = s 
     pos = 0
     tokenIn = "" # between {}
-    constructedString = ""
+    # constructedString = ""
 
   while true:
     # echo constructedString
     if pos >= buffer.len: # TODO check if this has to be '>'
       ## Nothing to do for us here
-      if constructedString != "":
-        yield newToken(NwtString, constructedString)
-        constructedString = ""
+      yield newToken(NwtString, stringToken)
       break
     var stringToken = ""
 
     ## BUG  BUG 
-    # var sss = ""
-    # while true:
-    #   pos = buffer.parseUntil(stringToken,'{',pos) + pos
-    #   if buffer.continuesWith("%", pos) or 
-    #      buffer.continuesWith("{", pos) or 
-    #      buffer.continuesWith("#", pos):
-
-    #     break
-    #   elif buffer.len >= pos:
-    #     yield newToken(NwtString, sss)
-    #     sss = ""
-    #     break
-    #   sss.add stringToken
-    ## TODO BUG BUG BUG BUG we have to while here
-    
-    # if stringToken != "":
-    #   # yield newToken(NwtString, stringToken)
-    #   constructedString.add stringToken
     pos.inc # skip "{"
     if buffer.continuesWith("{",pos): 
 
-      yieldAndExtractConstructedString    
+      # yieldAndExtractConstructedString    
 
       pos.inc # skip {
       pos = buffer.parseUntil(stringToken,'}',pos) + pos
@@ -106,7 +86,7 @@ iterator nwtTokenize(s: string): Token =
       pos.inc # skip }
     elif buffer.continuesWith("#",pos):
 
-      yieldAndExtractConstructedString    
+      # yieldAndExtractConstructedString    
 
       pos.inc # skip #
       pos = buffer.parseUntil(stringToken,'#',pos) + pos
@@ -116,7 +96,7 @@ iterator nwtTokenize(s: string): Token =
         yield newToken(NwtComment, stringToken[0..^1].strip()) # really need to strip?
     elif buffer.continuesWith("%",pos): 
 
-      yieldAndExtractConstructedString    
+      # yieldAndExtractConstructedString    
 
       pos.inc # skip #
       pos = buffer.parseUntil(stringToken,'%',pos) + pos
@@ -125,12 +105,15 @@ iterator nwtTokenize(s: string): Token =
         pos.inc # skip }
         yield newToken(NwtEval, stringToken[0..^1].strip()) # really need to strip? 
     else:
-      if pos > buffer.len:
-        constructedString.add(stringToken)
-      else:
-        constructedString.add(stringToken & "{") # since we've cut this off append it again
-      stringToken = ""
-      # pos.inc
+      # if pos > buffer.len:
+      #   constructedString.add(stringToken)
+      # else:
+      #   constructedString.add(stringToken & "{") # since we've cut this off append it again
+      # stringToken = ""
+      pos.inc
+
+      # yield newToken(NwtString, stringToken)
+      discard
 
 
 proc toStr(token: Token, params: StringTableRef = newStringTable()): string = 
