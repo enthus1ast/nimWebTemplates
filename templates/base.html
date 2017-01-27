@@ -1,6 +1,6 @@
 <html>
 	<head>
-		<title> {%block "title" %}{%endblock%} </title>
+		<title>{%block "title" %}BASE{%endblock%}</title>
 	</head>
 	<body>
 	
@@ -14,7 +14,7 @@
 
 		<h1>Welcome from base</h1>
 		<div id="content">
-			{{content}}
+			<h1>{{content}}</h1> 
 		</div>
 		{%block "content2" %}{%endblock%}
 

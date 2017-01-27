@@ -57,11 +57,6 @@ proc debugPrint(buffer: string, pos: int) =
   echo '-'.repeat(pointPos) & "^"
   # echo pointPos
 
-# template yieldAndExtractConstructedString() =
-#   if constructedString != "":
-#     yield newToken(NwtString, constructedString)
-#     constructedString = ""
-
 iterator nwtTokenize(s: string): Token =
   ## transforms nwt templates into tokens
   var 
@@ -70,20 +65,10 @@ iterator nwtTokenize(s: string): Token =
     toyieldlater = ""
 
   while true:
-    # if pos >= buffer.len: # TODO check if this has to be '>'
-    #   ## Nothing to do for us here
-    #   # if constructedString != ""
-    #   break
     var stringToken = ""
-    ## BUG  BUG 
     pos = buffer.parseUntil(stringToken,'{',pos) + pos
     # buffer.debugPrint(pos)
-    ## TODO BUG BUG BUG BUG we have to while here
-    
-    # if toyieldlater != "":
-    #   yield newToken(NwtString, toyieldlater)
-    #   toyieldlater = ""
-    
+
     if buffer == "{":
       # echo "buffer ist just '{'"
       yield newToken(NwtString, "{")
@@ -93,10 +78,6 @@ iterator nwtTokenize(s: string): Token =
       # echo "we have read the string at once! no '{' found"
       yield newToken(NwtString, stringToken)
       break
-
-    # if stringToken.len == buffer.len and stringToken == "{":
-    #   yield newToken(NwtString, stringToken)
-
 
     if stringToken != "" :
       # yield newToken(NwtString, stringToken)
@@ -126,10 +107,6 @@ iterator nwtTokenize(s: string): Token =
         pos.inc # skip }
         yield newToken(NwtEval, stringToken[0..^1].strip()) # really need to strip? 
     else:
-      # echo pos
-      # echo buffer.len, " ", buffer
-
-
       if pos >= buffer.len:
         # echo "we have reached the end of buffer"
         # yield newToken(NwtString, stringToken)
@@ -137,19 +114,10 @@ iterator nwtTokenize(s: string): Token =
       else:
         # echo "we found a { somewhere so we have to prepend it"
         toyieldlater = toyieldlater & "{" 
-        # echo toyieldlater
-        # yield newToken(NwtString, toyieldlater)
-        # yield newToken(NwtString, toyieldlater)
-        # if toyieldlater != "": yield newToken(NwtString, toyieldlater); toyieldlater = ""
-      # else:
-        # if toyieldlater != "": yield newToken(NwtString, toyieldlater & "{"); toyieldlater = ""        
-      # yield newToken(NwtString, stringToken)
-      # pos.inc
       discard
 
     if pos >= buffer.len: # TODO check if this has to be '>'
       ## Nothing to do for us here
-      # if constructedString != ""
       break
 
 proc toStr(token: Token, params: StringTableRef = newStringTable()): string = 
@@ -161,11 +129,6 @@ proc toStr(token: Token, params: StringTableRef = newStringTable()): string =
   of NwtComment:
     return ""
   of NwtVariable:
-    # if params.isNil:
-    #   raise newException(ValueError,"Supply params to render this template!")    
-    # if not params.hasKey(token.value):
-    #   raise newException(ValueError,"params not contains value: '" & token.value & "'")
-    # return params[token.value]
     var bufval = params.getOrDefault(token.value)
     if bufval == "":
       return "{{" & token.value & "}}" ## return the token when it could not replaced
@@ -190,14 +153,13 @@ proc extractTemplateName(raw: string): string =
   var parts = raw.strip().split(" ")
   if parts.len != 2:
     raise newException(TemplateSyntaxError, "Could not extract template name from '$1'" % [raw])
-    # return ""
   result = parts[1].captureBetween('"', '"')
   if result != "": return
 
   result = parts[1].captureBetween('\'', '\'')
   if result != "": return
 
-  result = parts[1] # if withouth any 
+  result = parts[1] # TODO is this working??
   
 
 proc getBlocks(tokens: seq[Token]): Table[string, Block] =
@@ -262,25 +224,7 @@ proc renderTemplate*(nwt: Nwt, templateName: string, params: StringTableRef = ne
 when isMainModule:
   # var nwt = newNwt()
   # echo "Loaded $1 templates." % [$nwt.templates.len]
-  # echo nwt.renderTemplate("ass.html")
-  # echo nwt.renderTemplate("base.html")
-  # echo nwt.renderTemplate("ugga.html")
-  # echo nwt.templates["base.html"]
-  # for each in nwtTokenize nwt.templates["base.html"]:
-    # echo each
 
-# var ss: string = ""
-  # for each in nwtTokenize("""fooo baaa {{ name }} {%block foo%}{%block "foo"%} {%endblock%} jasdkjfklajsdlfkjsd {{name}} hihi {# now a comment #}"""):
-# # for each in nwtTokenize(readFile("""c:\Users\MICROS\nimWebTemplates\templates\base.html""")):
-    # echo each
-#   # ss.add each.toStr( newStringTable({"name":"name"}))
-#
-
-  # echo toSeq(nwtTokenize("{hello}hello{{hello}}"))
-  # echo toSeq(nwtTokenize("{{hello}}"))
-  # echo toSeq(nwtTokenize("hello"))
-  # echo toSeq(nwtTokenize("{hello"))
-  # quit()
 
   ## Tokenize tests
   assert toSeq(nwtTokenize("hello")) == @[newToken(NwtString, "hello")]
@@ -292,9 +236,7 @@ when isMainModule:
   assert toSeq(nwtTokenize("{%raw%}")) == @[newToken(NwtEval, "raw")]
   assert toSeq(nwtTokenize("{% raw %}")) == @[newToken(NwtEval, "raw")]
   assert toSeq(nwtTokenize("{% for each in foo %}")) == @[newToken(NwtEval, "for each in foo")]
-  # var sss = toSeq(nwtTokenize("body { background-color: blue; }"))
-  # echo sss
-  # # quit()
+
   assert toSeq(nwtTokenize("body { background-color: blue; }")) == 
     @[newToken(NwtString, "body { background-color: blue; }")]
 
@@ -303,14 +245,12 @@ when isMainModule:
   assert toSeq(nwtTokenize("{nope")) == @[newToken(NwtString, "{nope")]
   assert toSeq(nwtTokenize("nope}")) == @[newToken(NwtString, "nope}")]
 
-  # echo toSeq(nwtTokenize("{"))
   assert toSeq(nwtTokenize("{")) == @[newToken(NwtString, "{")]
   assert toSeq(nwtTokenize("}")) == @[newToken(NwtString, "}")]
 
   assert toSeq(nwtTokenize("""{%block 'first'%}{%blockend%}""")) == @[newToken(NwtEval, "block 'first'"), newToken(NwtEval, "blockend")]
   assert toSeq(nwtTokenize("foo {baa}")) == @[newToken(NwtString, "foo {baa}")]
 
-  # echo toSeq(nwtTokenize("foo {{baa}} {baa}"))
   assert toSeq(nwtTokenize("foo {{baa}} {baa}")) == @[newToken(NwtString, "foo "), 
                                                       newToken(NwtVariable, "baa"),
                                                       newToken(NwtString, " {baa}")]
@@ -355,7 +295,6 @@ when isMainModule:
     #   echo each
 
 
-
   block:
 
     var tst = """{%extends "base.html"%}
@@ -378,7 +317,6 @@ when isMainModule:
 
 
     block:
-
       var baseTmpl  = toSeq(nwtTokenize("""{%block 'first'%}{%endblock%}"""))
       var childTmpl = toSeq(nwtTokenize("""{%block 'first'%}I AM THE CHILD{%endblock%}"""))
       echo baseTmpl
