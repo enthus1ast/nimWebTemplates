@@ -45,7 +45,6 @@ type
 
   Block = tuple[name: string, posStart: int, posEnd: int]
 
-
 proc newToken(tokenType:NwtToken, value: string): Token = 
   result = Token()
   result.tokenType = tokenType
@@ -55,7 +54,6 @@ proc debugPrint(buffer: string, pos: int) =
   var pointPos = if pos - 1 < 0: 0 else: pos - 1
   echo buffer
   echo '-'.repeat(pointPos) & "^"
-  # echo pointPos
 
 iterator nwtTokenize(s: string): Token =
   ## transforms nwt templates into tokens
@@ -161,7 +159,6 @@ proc extractTemplateName(raw: string): string =
 
   result = parts[1] # TODO is this working??
   
-
 proc getBlocks(tokens: seq[Token]): Table[string, Block] =
   # returns all {%block 'foo'%} statements as a Table of Block
   result = initTable[string, Block]()
@@ -220,11 +217,9 @@ proc renderTemplate*(nwt: Nwt, templateName: string, params: StringTableRef = ne
     for token in tokens:
       result.add token.toStr(params)
 
-
 when isMainModule:
   # var nwt = newNwt()
   # echo "Loaded $1 templates." % [$nwt.templates.len]
-
 
   ## Tokenize tests
   assert toSeq(nwtTokenize("hello")) == @[newToken(NwtString, "hello")]
@@ -254,7 +249,6 @@ when isMainModule:
   assert toSeq(nwtTokenize("foo {{baa}} {baa}")) == @[newToken(NwtString, "foo "), 
                                                       newToken(NwtVariable, "baa"),
                                                       newToken(NwtString, " {baa}")]
- 
   ## extractTemplateName tests
   assert extractTemplateName("""extends "foobaa.html" """) == "foobaa.html"
   assert extractTemplateName("""extends "foobaa.html"""") == "foobaa.html"
@@ -275,7 +269,6 @@ when isMainModule:
     assert extractTemplateName(tokens[0].value) == "foobaa.html"
     assert extractTemplateName(tokens[1].value) == "goo.html"
 
-
   block:
     let tst = """<html>
         <head>
@@ -294,9 +287,7 @@ when isMainModule:
     # for each in nwtTokenize(tst):
     #   echo each
 
-
   block:
-
     var tst = """{%extends "base.html"%}
     {%block "klausi"%}
     ass : ) 
@@ -308,13 +299,11 @@ when isMainModule:
     ass petr
     {%endblock%}"""
 
-
     # for i, each in toSeq(nwtTokenize(tst)):
     #   echo i, ":\t", each.tokenType, "-> " ,each.value.strip()
 
     # for each in getBlocks(toSeq(nwtTokenize(tst))).values:
     #   echo each
-
 
     block:
       var baseTmpl  = toSeq(nwtTokenize("""{%block 'first'%}{%endblock%}"""))
@@ -323,11 +312,9 @@ when isMainModule:
       for each in getBlocks(baseTmpl).values:
         echo each
 
-
       echo childTmpl
       for each in getBlocks(childTmpl).values:
         echo each
-
 
       echo baseTmpl.fillBlocks(childTmpl)
 
