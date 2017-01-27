@@ -51,6 +51,11 @@ proc newToken(tokenType:NwtToken, value: string): Token =
   result.tokenType = tokenType
   result.value = value
 
+proc debugPrint(buffer: string, pos: int) = 
+  var pointPos = if pos - 1 < 0: 0 else: pos - 1
+  echo buffer
+  echo '-'.repeat(pointPos) & "^"
+  # echo pointPos
 
 template yieldAndExtractConstructedString() =
   if constructedString != "":
@@ -63,31 +68,51 @@ iterator nwtTokenize(s: string): Token =
     buffer: string = s 
     pos = 0
     tokenIn = "" # between {}
-    # constructedString = ""
+    constructedString = ""
+    toyieldlater = ""
 
   while true:
-    # echo constructedString
-    if pos >= buffer.len: # TODO check if this has to be '>'
-      ## Nothing to do for us here
+    # if pos >= buffer.len: # TODO check if this has to be '>'
+    #   ## Nothing to do for us here
+    #   # if constructedString != ""
+    #   break
+    var stringToken = ""
+    ## BUG  BUG 
+    pos = buffer.parseUntil(stringToken,'{',pos) + pos
+    # buffer.debugPrint(pos)
+    ## TODO BUG BUG BUG BUG we have to while here
+    
+    # if toyieldlater != "":
+    #   yield newToken(NwtString, toyieldlater)
+    #   toyieldlater = ""
+    
+    if buffer == "{":
+      # echo "buffer ist just '{'"
+      yield newToken(NwtString, "{")
+      break
+
+    if stringToken.len == buffer.len:
+      # echo "we have read the string at once! no '{' found"
       yield newToken(NwtString, stringToken)
       break
-    var stringToken = ""
 
-    ## BUG  BUG 
+    # if stringToken.len == buffer.len and stringToken == "{":
+    #   yield newToken(NwtString, stringToken)
+
+
+    if stringToken != "" :
+      # yield newToken(NwtString, stringToken)
+      toyieldlater.add stringToken
     pos.inc # skip "{"
     if buffer.continuesWith("{",pos): 
-
-      # yieldAndExtractConstructedString    
-
+      if toyieldlater != "": yield newToken(NwtString, toyieldlater); toyieldlater = ""
       pos.inc # skip {
       pos = buffer.parseUntil(stringToken,'}',pos) + pos
       yield newToken(NwtVariable, stringToken.strip())
       pos.inc # skip }
       pos.inc # skip }
-    elif buffer.continuesWith("#",pos):
-
-      # yieldAndExtractConstructedString    
-
+    elif buffer.continuesWith("#",pos): 
+      if toyieldlater != "": yield newToken(NwtString, toyieldlater); toyieldlater = ""
       pos.inc # skip #
       pos = buffer.parseUntil(stringToken,'#',pos) + pos
       pos.inc # skip end # 
@@ -95,9 +120,7 @@ iterator nwtTokenize(s: string): Token =
         pos.inc # skip }
         yield newToken(NwtComment, stringToken[0..^1].strip()) # really need to strip?
     elif buffer.continuesWith("%",pos): 
-
-      # yieldAndExtractConstructedString    
-
+      if toyieldlater != "": yield newToken(NwtString, toyieldlater); toyieldlater = ""
       pos.inc # skip #
       pos = buffer.parseUntil(stringToken,'%',pos) + pos
       pos.inc # skip end # 
@@ -105,16 +128,31 @@ iterator nwtTokenize(s: string): Token =
         pos.inc # skip }
         yield newToken(NwtEval, stringToken[0..^1].strip()) # really need to strip? 
     else:
-      # if pos > buffer.len:
-      #   constructedString.add(stringToken)
-      # else:
-      #   constructedString.add(stringToken & "{") # since we've cut this off append it again
-      # stringToken = ""
-      pos.inc
+      # echo pos
+      # echo buffer.len, " ", buffer
 
+
+      if pos >= buffer.len:
+        # echo "we have reached the end of buffer"
+        # yield newToken(NwtString, stringToken)
+        yield newToken(NwtString, toyieldlater)
+      else:
+        # echo "we found a { somewhere so we have to prepend it"
+        toyieldlater = toyieldlater & "{" 
+        # echo toyieldlater
+        # yield newToken(NwtString, toyieldlater)
+        # yield newToken(NwtString, toyieldlater)
+        # if toyieldlater != "": yield newToken(NwtString, toyieldlater); toyieldlater = ""
+      # else:
+        # if toyieldlater != "": yield newToken(NwtString, toyieldlater & "{"); toyieldlater = ""        
       # yield newToken(NwtString, stringToken)
+      # pos.inc
       discard
 
+    if pos >= buffer.len: # TODO check if this has to be '>'
+      ## Nothing to do for us here
+      # if constructedString != ""
+      break
 
 proc toStr(token: Token, params: StringTableRef = newStringTable()): string = 
   ## transforms the token to its string representation 
@@ -224,8 +262,8 @@ proc renderTemplate*(nwt: Nwt, templateName: string, params: StringTableRef = ne
 
 
 when isMainModule:
-  var nwt = newNwt()
-  echo "Loaded $1 templates." % [$nwt.templates.len]
+  # var nwt = newNwt()
+  # echo "Loaded $1 templates." % [$nwt.templates.len]
   # echo nwt.renderTemplate("ass.html")
   # echo nwt.renderTemplate("base.html")
   # echo nwt.renderTemplate("ugga.html")
@@ -240,8 +278,11 @@ when isMainModule:
 #   # ss.add each.toStr( newStringTable({"name":"name"}))
 #
 
-  echo toSeq(nwtTokenize("hello"))
-  quit()
+  # echo toSeq(nwtTokenize("{hello}hello{{hello}}"))
+  # echo toSeq(nwtTokenize("{{hello}}"))
+  # echo toSeq(nwtTokenize("hello"))
+  # echo toSeq(nwtTokenize("{hello"))
+  # quit()
 
   ## Tokenize tests
   assert toSeq(nwtTokenize("hello")) == @[newToken(NwtString, "hello")]
@@ -263,12 +304,14 @@ when isMainModule:
   assert toSeq(nwtTokenize("{nope}")) == @[newToken(NwtString, "{nope}")]
   assert toSeq(nwtTokenize("{nope")) == @[newToken(NwtString, "{nope")]
   assert toSeq(nwtTokenize("nope}")) == @[newToken(NwtString, "nope}")]
+
+  # echo toSeq(nwtTokenize("{"))
   assert toSeq(nwtTokenize("{")) == @[newToken(NwtString, "{")]
   assert toSeq(nwtTokenize("}")) == @[newToken(NwtString, "}")]
 
   assert toSeq(nwtTokenize("foo {baa}")) == @[newToken(NwtString, "foo {baa}")]
 
-  echo toSeq(nwtTokenize("foo {{baa}} {baa}"))
+  # echo toSeq(nwtTokenize("foo {{baa}} {baa}"))
   assert toSeq(nwtTokenize("foo {{baa}} {baa}")) == @[newToken(NwtString, "foo "), 
                                                       newToken(NwtVariable, "baa"),
                                                       newToken(NwtString, " {baa}")]
@@ -301,7 +344,8 @@ when isMainModule:
         </head>
         <body>
         <style>
-          
+          {%block 'foo'%}{}{%endblock%}
+          {ugga}}
         </style>
           <h1>Welcome from baseasdfasdf</h1>
           <div id="content">
