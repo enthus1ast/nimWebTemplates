@@ -30,9 +30,6 @@ type
   TemplateSyntaxError = Exception
   UnknownTemplate = Exception
 
-  Nwt = object of RootObj
-    templates*: StringTableRef ## we load all the templates we want to render to this strtab
-
   NwtToken = enum
     NwtString, # a string block
     NwtComment,
@@ -42,6 +39,10 @@ type
   Token = object of RootObj 
     tokenType: NwtToken # the type of the token
     value: string # the value 
+
+  Nwt = object of RootObj
+    # templates*: StringTableRef ## we load all the templates we want to render to this strtab
+    templates*: Table[string,seq[Token]]
 
   Block = tuple[name: string, posStart: int, posEnd: int]
 
@@ -138,11 +139,12 @@ proc toStr(token: Token, params: StringTableRef = newStringTable()): string =
 proc newNwt*(templatesDir: string = "./templates/*.html"): Nwt =
   ## this loads all templates from the template into memory
   result = Nwt()
-  result.templates = newStringTable()
+  # result.templates = newStringTable()
+  result.templates = initTable[string,seq[Token]]()
   for filename in walkFiles(templatesDir):
     var templateName = extractFilename(filename)
     # echo "Load: $1 as $2", % [filename, templateName]
-    result.templates[templateName] = readFile(filename)
+    result.templates[templateName] = toSeq(nwtTokenize readFile(filename))
 
 proc extractTemplateName(raw: string): string = 
   ## returns the template name from
@@ -204,10 +206,10 @@ proc renderTemplate*(nwt: Nwt, templateName: string, params: StringTableRef = ne
 
   if not nwt.templates.hasKey(templateName):
     raise newException(UnknownTemplate, "Template '$1' not found." % [templateName])
-  for each in nwtTokenize(nwt.templates[templateName]):
+  for each in nwt.templates[templateName]:
     if each.tokenType == NwtEval and  each.value.startswith("extends"):
       # echo "template has an extends"
-      baseTemplateTokens = toSeq( nwtTokenize(  nwt.templates[extractTemplateName(each.value)] ))
+      baseTemplateTokens = nwt.templates[extractTemplateName(each.value)]
     tokens.add each
 
   if baseTemplateTokens.len > 0:
