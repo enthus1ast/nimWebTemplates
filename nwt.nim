@@ -57,18 +57,16 @@ proc debugPrint(buffer: string, pos: int) =
   echo '-'.repeat(pointPos) & "^"
   # echo pointPos
 
-template yieldAndExtractConstructedString() =
-  if constructedString != "":
-    yield newToken(NwtString, constructedString)
-    constructedString = ""
+# template yieldAndExtractConstructedString() =
+#   if constructedString != "":
+#     yield newToken(NwtString, constructedString)
+#     constructedString = ""
 
 iterator nwtTokenize(s: string): Token =
   ## transforms nwt templates into tokens
   var 
     buffer: string = s 
     pos = 0
-    tokenIn = "" # between {}
-    constructedString = ""
     toyieldlater = ""
 
   while true:
@@ -207,7 +205,7 @@ proc getBlocks(tokens: seq[Token]): Table[string, Block] =
   result = initTable[string, Block]()
   var actual: Block = ("",0,0)
   for i, each in tokens:
-    if each.tokenType == NwtEval and each.value.strip().startswith("block"):
+    if each.tokenType == NwtEval and each.value.strip().startswith("block"): # block
       actual.name = each.value.extractTemplateName()
       actual.posStart = i
     if each.tokenType == NwtEval and each.value.strip().startswith("endblock"):
@@ -228,7 +226,7 @@ proc fillBlocks(baseTemplateTokens, tokens: seq[Token]): seq[Token] =
     if templateBlocks.contains(baseBlock.name):
       if templateBlocks.contains(baseBlock.name): 
         # we only do anything if we have that block in the extending template
-        result.delete(templateBlocks[baseBlock.name].posStart, templateBlocks[baseBlock.name].posEnd)
+        result.delete(baseTemplateBlocks[baseBlock.name].posStart, baseTemplateBlocks[baseBlock.name].posEnd)
         var startp = templateBlocks[baseBlock.name].posStart
         var endp = templateBlocks[baseBlock.name].posEnd
         # var endp   = tokens[templateBlocks[baseBlock.name]].posStart
@@ -309,6 +307,7 @@ when isMainModule:
   assert toSeq(nwtTokenize("{")) == @[newToken(NwtString, "{")]
   assert toSeq(nwtTokenize("}")) == @[newToken(NwtString, "}")]
 
+  assert toSeq(nwtTokenize("""{%block 'first'%}{%blockend%}""")) == @[newToken(NwtEval, "block 'first'"), newToken(NwtEval, "blockend")]
   assert toSeq(nwtTokenize("foo {baa}")) == @[newToken(NwtString, "foo {baa}")]
 
   # echo toSeq(nwtTokenize("foo {{baa}} {baa}"))
@@ -371,14 +370,28 @@ when isMainModule:
     {%endblock%}"""
 
 
-    for i, each in toSeq(nwtTokenize(tst)):
-      echo i, ": ", each.value.strip()
+    # for i, each in toSeq(nwtTokenize(tst)):
+    #   echo i, ":\t", each.tokenType, "-> " ,each.value.strip()
 
-    for each in getBlocks(toSeq(nwtTokenize(tst))).values:
-      echo each
+    # for each in getBlocks(toSeq(nwtTokenize(tst))).values:
+    #   echo each
 
 
+    block:
 
+      var baseTmpl  = toSeq(nwtTokenize("""{%block 'first'%}{%endblock%}"""))
+      var childTmpl = toSeq(nwtTokenize("""{%block 'first'%}I AM THE CHILD{%endblock%}"""))
+      echo baseTmpl
+      for each in getBlocks(baseTmpl).values:
+        echo each
+
+
+      echo childTmpl
+      for each in getBlocks(childTmpl).values:
+        echo each
+
+
+      echo baseTmpl.fillBlocks(childTmpl)
 
   ## fillBlock tests
 
