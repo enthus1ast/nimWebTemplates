@@ -352,8 +352,32 @@ when isMainModule:
           </div>
         </body>
       </html>""" 
-    for each in nwtTokenize(tst):
+    # for each in nwtTokenize(tst):
+    #   echo each
+
+
+
+  block:
+
+    var tst = """{%extends "base.html"%}
+    {%block "klausi"%}
+    ass : ) 
+    {%endblock%}
+    {%block "content2"%}
+    ass : ) 
+    {%endblock%}
+    {%block "peter"%}
+    ass petr
+    {%endblock%}"""
+
+
+    for i, each in toSeq(nwtTokenize(tst)):
+      echo i, ": ", each.value.strip()
+
+    for each in getBlocks(toSeq(nwtTokenize(tst))).values:
       echo each
+
+
 
 
   ## fillBlock tests
