@@ -47,7 +47,6 @@ type
   Block = tuple[name: string, posStart: int, posEnd: int]
 
 
-
 proc newToken(tokenType:NwtToken, value: string): Token = 
   result = Token()
   result.tokenType = tokenType
@@ -63,7 +62,7 @@ iterator nwtTokenize(s: string): Token =
   var 
     buffer: string = s 
     pos = 0
-    toyieldlater = ""
+    toyieldlater = "" # we use this to reconstruct a string whitch contains a "{"
 
   while true:
     var stringToken = ""
@@ -81,7 +80,6 @@ iterator nwtTokenize(s: string): Token =
       break
 
     if stringToken != "" :
-      # yield newToken(NwtString, stringToken)
       toyieldlater.add stringToken
     pos.inc # skip "{"
     if buffer.continuesWith("{",pos): 
@@ -98,7 +96,7 @@ iterator nwtTokenize(s: string): Token =
       pos.inc # skip end # 
       if buffer.continuesWith("}", pos): 
         pos.inc # skip }
-        yield newToken(NwtComment, stringToken[0..^1].strip()) # really need to strip?
+        yield newToken(NwtComment, stringToken[0..^1].strip())
     elif buffer.continuesWith("%",pos): 
       if toyieldlater != "": yield newToken(NwtString, toyieldlater); toyieldlater = ""
       pos.inc # skip #
@@ -106,11 +104,10 @@ iterator nwtTokenize(s: string): Token =
       pos.inc # skip end # 
       if buffer.continuesWith("}", pos): 
         pos.inc # skip }
-        yield newToken(NwtEval, stringToken[0..^1].strip()) # really need to strip? 
+        yield newToken(NwtEval, stringToken[0..^1].strip())
     else:
       if pos >= buffer.len:
         # echo "we have reached the end of buffer"
-        # yield newToken(NwtString, stringToken)
         yield newToken(NwtString, toyieldlater)
       else:
         # echo "we found a { somewhere so we have to prepend it"
@@ -138,14 +135,13 @@ proc toStr(token: Token, params: StringTableRef = newStringTable()): string =
   else:
     return ""
 
-# proc add*(tokens: var Table[string,seq[Token]], templateName, templateStr: string) =
-#   templates[templateName] = toSeq(nwtTokenize templateStr)
+proc add*(tokens: var Table[string,seq[Token]], templateName, templateStr: string) =
+  ## parses and adds/updates a template
+  tokens[templateName] = toSeq(nwtTokenize templateStr)
 
 proc addTemplate*(nwt: var Nwt, templateName , templateStr: string) = 
   ## parses and adds/updates a template
   nwt.templates[templateName] = toSeq(nwtTokenize templateStr)
-
-
 
 proc newNwt*(templatesDir: string = "./templates/*.html"): Nwt =
   ## this loads all templates from the template into memory
@@ -277,7 +273,7 @@ when isMainModule:
     assert extractTemplateName(tokens[0].value) == "foobaa.html"
     assert extractTemplateName(tokens[1].value) == "goo.html"
   block: 
-    var tokens = toSeq(nwtTokenize("""{% extends "foobaa.html" %}{% extends "goo.html" %}""")) 
+    var tokens = toSeq(nwtTokenize("""{% extends foobaa.html %}{% extends goo.html %}""")) 
     assert extractTemplateName(tokens[0].value) == "foobaa.html"
     assert extractTemplateName(tokens[1].value) == "goo.html"
   block: 
@@ -285,7 +281,7 @@ when isMainModule:
     assert extractTemplateName(tokens[0].value) == "foobaa.html"
     assert extractTemplateName(tokens[1].value) == "goo.html"
   block: 
-    var tokens = toSeq(nwtTokenize("""{%extends foobaa.html %}""")) 
+    var tokens = toSeq(nwtTokenize("""{%extends foobaa.html%}""")) 
     assert extractTemplateName(tokens[0].value) == "foobaa.html"
 
 
@@ -343,15 +339,19 @@ when isMainModule:
     block:
       var t = newNwt(nil)
       assert t.templates == initTable[system.string, seq[Token]]()
-      t.templates.add("foo.html","i am the {{faa}} template")
+
+      t.addTemplate("foo.html","i am the {{faa}} template")
       assert t.renderTemplate("foo.html",newStringTable({"faa": "super"})) == "i am the super template"
 
       t.templates.add("base.html","{%block 'bar'%}{%endblock%}")
+      t.templates.add("extends.html","{%extends base.html%}{%block 'bar'%}Nim likes you{%endblock%}")
+      assert t.renderTemplate("extends.html") == "Nim likes you"
 
+
+    # test block in block
+    block:
+      discard # TODO
+      # t.templates.add("base.html","{%block 'bar'%}{%endblock%}")
+      # t.templates.add("extends.html","{%extends base.html%}{%block 'bar'%}Nim likes you{%endblock%}")
+      # assert t.renderTemplate("extends.html") == "Nim likes you"      
       # addTemplate
-
-
-
-  ## fillBlock tests
-
-  # echo extractTemplateName("""extends "foobaa.html" """)
