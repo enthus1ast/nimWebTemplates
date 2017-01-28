@@ -42,9 +42,11 @@ type
 
   Nwt = object of RootObj
     # templates*: StringTableRef ## we load all the templates we want to render to this strtab
-    templates*: Table[string,seq[Token]]
+    templates*: Table[string,seq[Token]] ## we parse templates on start
 
   Block = tuple[name: string, posStart: int, posEnd: int]
+
+
 
 proc newToken(tokenType:NwtToken, value: string): Token = 
   result = Token()
@@ -136,15 +138,27 @@ proc toStr(token: Token, params: StringTableRef = newStringTable()): string =
   else:
     return ""
 
+# proc add*(tokens: var Table[string,seq[Token]], templateName, templateStr: string) =
+#   templates[templateName] = toSeq(nwtTokenize templateStr)
+
+proc addTemplate*(nwt: var Nwt, templateName , templateStr: string) = 
+  ## parses and adds/updates a template
+  nwt.templates[templateName] = toSeq(nwtTokenize templateStr)
+
+
+
 proc newNwt*(templatesDir: string = "./templates/*.html"): Nwt =
   ## this loads all templates from the template into memory
+  ## if templatesDir == nil we do not load any templates
+  ##  we cann add them later by `addTemplate("{%foo%}{%baa%}")`
   result = Nwt()
   # result.templates = newStringTable()
   result.templates = initTable[string,seq[Token]]()
-  for filename in walkFiles(templatesDir):
-    var templateName = extractFilename(filename)
-    # echo "Load: $1 as $2", % [filename, templateName]
-    result.templates[templateName] = toSeq(nwtTokenize readFile(filename))
+  if not templatesDir.isNil:
+    for filename in walkFiles(templatesDir):
+      var templateName = extractFilename(filename)
+      # echo "Load: $1 as $2", % [filename, templateName]
+      result.templates[templateName] = toSeq(nwtTokenize readFile(filename))
 
 proc extractTemplateName(raw: string): string = 
   ## returns the template name from
@@ -159,7 +173,7 @@ proc extractTemplateName(raw: string): string =
   result = parts[1].captureBetween('\'', '\'')
   if result != "": return
 
-  result = parts[1] # TODO is this working??
+  result = parts[1] #   " or ' are missing
   
 proc getBlocks(tokens: seq[Token]): Table[string, Block] =
   # returns all {%block 'foo'%} statements as a Table of Block
@@ -270,6 +284,10 @@ when isMainModule:
     var tokens = toSeq(nwtTokenize("""{%extends "foobaa.html" %}{% extends 'goo.html' %}""")) 
     assert extractTemplateName(tokens[0].value) == "foobaa.html"
     assert extractTemplateName(tokens[1].value) == "goo.html"
+  block: 
+    var tokens = toSeq(nwtTokenize("""{%extends foobaa.html %}""")) 
+    assert extractTemplateName(tokens[0].value) == "foobaa.html"
+
 
   block:
     let tst = """<html>
@@ -319,6 +337,20 @@ when isMainModule:
         echo each
 
       echo baseTmpl.fillBlocks(childTmpl)
+
+
+    # addTemplate tests
+    block:
+      var t = newNwt(nil)
+      assert t.templates == initTable[system.string, seq[Token]]()
+      t.templates.add("foo.html","i am the {{faa}} template")
+      assert t.renderTemplate("foo.html",newStringTable({"faa": "super"})) == "i am the super template"
+
+      t.templates.add("base.html","{%block 'bar'%}{%endblock%}")
+
+      # addTemplate
+
+
 
   ## fillBlock tests
 
