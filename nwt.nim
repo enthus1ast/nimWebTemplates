@@ -145,6 +145,8 @@ proc addTemplate*(nwt: Nwt, templateName , templateStr: string) =
   nwt.templates[templateName] = toSeq(nwtTokenize templateStr)
 
 proc loadTemplates(nwt: Nwt, templatesDir: string) =
+  ## loads and parses the templates from the filesystem.
+  ## call this for refreshing the templates 
   if not templatesDir.isNil:
     for filename in walkFiles(templatesDir):
       var templateName = extractFilename(filename)
