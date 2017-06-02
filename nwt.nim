@@ -40,9 +40,10 @@ type
     tokenType: NwtToken # the type of the token
     value: string # the value 
 
-  Nwt = object of RootObj
+  Nwt = ref object of RootObj
     # templates*: StringTableRef ## we load all the templates we want to render to this strtab
     templates*: Table[string,seq[Token]] ## we parse templates on start
+    templatesDir*: string
 
   Block = tuple[name: string, posStart: int, posEnd: int]
 
@@ -139,9 +140,16 @@ proc add*(tokens: var Table[string,seq[Token]], templateName, templateStr: strin
   ## parses and adds/updates a template
   tokens[templateName] = toSeq(nwtTokenize templateStr)
 
-proc addTemplate*(nwt: var Nwt, templateName , templateStr: string) = 
+proc addTemplate*(nwt: Nwt, templateName , templateStr: string) = 
   ## parses and adds/updates a template
   nwt.templates[templateName] = toSeq(nwtTokenize templateStr)
+
+proc loadTemplates(nwt: Nwt, templatesDir: string) =
+  if not templatesDir.isNil:
+    for filename in walkFiles(templatesDir):
+      var templateName = extractFilename(filename)
+      # echo "Load: $1 as $2", % [filename, templateName]
+      nwt.templates[templateName] = toSeq(nwtTokenize readFile(filename))
 
 proc newNwt*(templatesDir: string = "./templates/*.html"): Nwt =
   ## this loads all templates from the template into memory
@@ -150,11 +158,8 @@ proc newNwt*(templatesDir: string = "./templates/*.html"): Nwt =
   result = Nwt()
   # result.templates = newStringTable()
   result.templates = initTable[string,seq[Token]]()
-  if not templatesDir.isNil:
-    for filename in walkFiles(templatesDir):
-      var templateName = extractFilename(filename)
-      # echo "Load: $1 as $2", % [filename, templateName]
-      result.templates[templateName] = toSeq(nwtTokenize readFile(filename))
+  result.templatesDir = templatesDir
+  result.loadTemplates(templatesDir)
 
 proc extractTemplateName(raw: string): string = 
   ## returns the template name from
@@ -212,6 +217,12 @@ proc renderTemplate*(nwt: Nwt, templateName: string, params: StringTableRef = ne
   ## if the loaded template extends a base template, we parse this as well and fill all the blocks.
   ## ATM this is not recursively checking for extends on child templates! 
   ## So only one 'extends' level is supported.
+  ## 
+  
+  when not defined release:
+    echo "WARNING THIS IS AN DEBUG BUILD. NWT PARSES THE HTML ON EVERY GET; THIS IS SLOW"
+    nwt.loadTemplates(nwt.templatesDir)
+
   result = ""
   var tokens: seq[Token] = @[]
   var baseTemplateTokens: seq[Token] = @[]
