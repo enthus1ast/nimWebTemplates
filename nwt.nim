@@ -27,8 +27,8 @@ import os
 import tables
 
 type 
-  TemplateSyntaxError = Exception
-  UnknownTemplate = Exception
+  TemplateSyntaxError = ref object # of Exception
+  UnknownTemplate = ref object  #of Exception
 
   NwtToken = enum
     NwtString, # a string block
@@ -162,7 +162,9 @@ proc extractTemplateName(raw: string): string =
   ## returns "base.html"
   var parts = raw.strip().split(" ")
   if parts.len != 2:
-    raise newException(TemplateSyntaxError, "Could not extract template name from '$1'" % [raw])
+    # TemplateSyntaxError
+    raise newException(ValueError, "Could not extract template name from '$1'" % [raw])
+    # raise (OsError, "Could not extract template name from '$1'" % [raw])
   result = parts[1].captureBetween('"', '"')
   if result != "": return
 
@@ -215,7 +217,7 @@ proc renderTemplate*(nwt: Nwt, templateName: string, params: StringTableRef = ne
   var baseTemplateTokens: seq[Token] = @[]
 
   if not nwt.templates.hasKey(templateName):
-    raise newException(UnknownTemplate, "Template '$1' not found." % [templateName])
+    raise newException(ValueError, "Template '$1' not found." % [templateName]) # UnknownTemplate
   for each in nwt.templates[templateName]:
     if each.tokenType == NwtEval and  each.value.startswith("extends"):
       # echo "template has an extends"
