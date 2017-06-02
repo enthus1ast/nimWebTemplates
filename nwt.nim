@@ -213,23 +213,26 @@ proc renderTemplate*(nwt: Nwt, templateName: string, params: StringTableRef = ne
   ## ATM this is not recursively checking for extends on child templates! 
   ## So only one 'extends' level is supported.
   result = ""
-  var tokens: seq[Token] = @[]
-  var baseTemplateTokens: seq[Token] = @[]
+
 
   if not nwt.templates.hasKey(templateName):
     raise newException(ValueError, "Template '$1' not found." % [templateName]) # UnknownTemplate
   for each in nwt.templates[templateName]:
+
+    var tokens: seq[Token] = @[]
+    var baseTemplateTokens: seq[Token] = @[]
+
     if each.tokenType == NwtEval and  each.value.startswith("extends"):
       # echo "template has an extends"
       baseTemplateTokens = nwt.templates[extractTemplateName(each.value)]
     tokens.add each
 
-  if baseTemplateTokens.len > 0:
-    for token in baseTemplateTokens.fillBlocks(tokens):
-      result.add token.toStr(params)
-  else:
-    for token in tokens:
-      result.add token.toStr(params)
+    if baseTemplateTokens.len > 0:
+      for token in baseTemplateTokens.fillBlocks(tokens):
+        result.add token.toStr(params)
+    else:
+      for token in tokens:
+        result.add token.toStr(params)
 
 when isMainModule:
   # var nwt = newNwt()
