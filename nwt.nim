@@ -214,6 +214,25 @@ proc fillBlocks(baseTemplateTokens, tokens: seq[Token]): seq[Token] =
         var inspos = baseTemplateBlocks[baseBlock.name].posStart
         result.insert(tokens[startp .. endp] , inspos)
 
+
+proc evalTemplate(nwt: Nwt, templateName: string, params: StringTableRef = newStringTable()): seq[Token] = 
+  result = @[]
+  for each in nwt.templates[templateName]:
+    if each.tokenType == NwtEval and each.value.startswith("extends"):
+      # echo "template has an extends"
+      # baseTemplateTokens = nwt.templates[extractTemplateName(each.value)]
+      # result = evalTemplate(nwt, extractTemplateName(each.value), params)
+      result.add evalTemplate(nwt, extractTemplateName(each.value), params)
+
+      
+    elif each.tokenType == NwtEval and each.value.startswith("set"):
+      let setCmd = newChatCommand(each.value)
+      params[setCmd.params[0]] = setCmd.params[1] 
+      echo "params[$1] = $2" % [setCmd.params[0], setCmd.params[1]]
+    # elif each.tokenType == NwtEval and each.value.startswith("if"):
+    #   let checkVar = extractTemplateName(each.value)      
+    result.add each
+
 proc renderTemplate*(nwt: Nwt, templateName: string, params: StringTableRef = newStringTable()): string =
   ## this returns the fully rendered template.
   ## all replacements are done.
@@ -232,17 +251,20 @@ proc renderTemplate*(nwt: Nwt, templateName: string, params: StringTableRef = ne
 
   if not nwt.templates.hasKey(templateName):
     raise newException(ValueError, "Template '$1' not found." % [templateName]) # UnknownTemplate
-  for each in nwt.templates[templateName]:
-    if each.tokenType == NwtEval and each.value.startswith("extends"):
-      # echo "template has an extends"
-      baseTemplateTokens = nwt.templates[extractTemplateName(each.value)]
-    elif each.tokenType == NwtEval and each.value.startswith("set"):
-      let setCmd = newChatCommand(each.value)
-      params[setCmd.params[0]] = setCmd.params[1] 
-      echo "params[$1] = $2" % [setCmd.params[0], setCmd.params[1]]
-    # elif each.tokenType == NwtEval and each.value.startswith("if"):
-    #   let checkVar = extractTemplateName(each.value)      
-    tokens.add each
+
+
+  tokens = evalTemplate(nwt, templateName, params)
+  # for each in nwt.templates[templateName]:
+  #   if each.tokenType == NwtEval and each.value.startswith("extends"):
+  #     # echo "template has an extends"
+  #     baseTemplateTokens = nwt.templates[extractTemplateName(each.value)]
+  #   elif each.tokenType == NwtEval and each.value.startswith("set"):
+  #     let setCmd = newChatCommand(each.value)
+  #     params[setCmd.params[0]] = setCmd.params[1] 
+  #     echo "params[$1] = $2" % [setCmd.params[0], setCmd.params[1]]
+  #   # elif each.tokenType == NwtEval and each.value.startswith("if"):
+  #   #   let checkVar = extractTemplateName(each.value)      
+  #   tokens.add each
 
   if baseTemplateTokens.len > 0:
     for token in baseTemplateTokens.fillBlocks(tokens):
