@@ -34,16 +34,20 @@ type
     templates*: Table[string,seq[Token]] ## we parse templates on start
     templatesDir*: string
 
+  Block = tuple[name: string, posStart: int, posEnd: int]
+
 proc add*(tokens: var Table[string,seq[Token]], templateName, templateStr: string) =
   ## parses and adds/updates a template
   tokens[templateName] = toSeq(nwtTokenize templateStr)
 
 proc addTemplate*(nwt: Nwt, templateName , templateStr: string) = 
-  ## parses and adds/updates a template
+  ## parses and adds/updates a template, given by a string
   nwt.templates[templateName] = toSeq(nwtTokenize templateStr)
 
 proc loadTemplates(nwt: Nwt, templatesDir: string) =
   ## loads and parses the templates from the filesystem.
+  ## basic wildcards supported:
+  ##    /foo/baa/*.html
   ## call this for refreshing the templates 
   if not templatesDir.isNil:
     for filename in walkFiles(templatesDir):
@@ -54,14 +58,14 @@ proc loadTemplates(nwt: Nwt, templatesDir: string) =
 proc newNwt*(templatesDir: string = "./templates/*.html"): Nwt =
   ## this loads all templates from the template into memory
   ## if templatesDir == nil we do not load any templates
-  ##  we cann add them later by `addTemplate("{%foo%}{%baa%}")`
+  ##  we can add them later by `addTemplate("{%foo%}{%baa%}")`
   result = Nwt()
   # result.templates = newStringTable()
   result.templates = initTable[string,seq[Token]]()
   result.templatesDir = templatesDir
   result.loadTemplates(templatesDir)
 
-proc getBlocks(tokens: seq[Token]): Table[string, Block] =
+proc getBlocks*(tokens: seq[Token]): Table[string, Block] = # TODO private
   # returns all {%block 'foo'%} statements as a Table of Block
   result = initTable[string, Block]()
   var actual: Block = ("",0,0)
@@ -74,7 +78,7 @@ proc getBlocks(tokens: seq[Token]): Table[string, Block] =
       result[actual.name] = actual
       actual = ("",0,0)
 
-proc fillBlocks(baseTemplateTokens, tokens: seq[Token]): seq[Token] = 
+proc fillBlocks*(baseTemplateTokens, tokens: seq[Token]): seq[Token] =  # TODO private
   ## This fills all the base template blocks with
   ## blocks from extending template
   # @[(name: content2, posStart: 2, posEnd: 4), (name: peter, posStart: 6, posEnd: 8)]
@@ -89,22 +93,23 @@ proc fillBlocks(baseTemplateTokens, tokens: seq[Token]): seq[Token] =
       result.delete(baseTemplateBlocks[baseBlock.name].posStart, baseTemplateBlocks[baseBlock.name].posEnd)
       var startp = templateBlocks[baseBlock.name].posStart
       var endp = templateBlocks[baseBlock.name].posEnd
-      # var endp   = tokens[templateBlocks[baseBlock.name]].posStart
       var inspos = baseTemplateBlocks[baseBlock.name].posStart
       result.insert(tokens[startp .. endp] , inspos)
 
 
 proc evalTemplate(nwt: Nwt, templateName: string, params: StringTableRef = newStringTable()): seq[Token] = 
+  # discard
   result = @[]
   var tokens = newSeq[Token]()
   for each in nwt.templates[templateName]:
     if each.tokenType == NwtEval and each.value.startswith("extends"):
       # echo "template has an extends"
       # baseTemplateTokens = nwt.templates[extractTemplateName(each.value)]
+
+      ## ONLY ONE BASE TEMPLATE IS SUPPORTED!! so only ONE {%extends%} __PER FILE__!
       result = evalTemplate(nwt, extractTemplateName(each.value), params)
       # result.add evalTemplate(nwt, extractTemplateName(each.value), params)
 
-      
     elif each.tokenType == NwtEval and each.value.startswith("set"):
       let setCmd = newChatCommand(each.value)
       params[setCmd.params[0]] = setCmd.params[1] 
@@ -113,8 +118,8 @@ proc evalTemplate(nwt: Nwt, templateName: string, params: StringTableRef = newSt
     #   let checkVar = extractTemplateName(each.value)      
     tokens.add each
 
-  for each in tokens:
-    result.fillBlocks()
+  # for each in tokens:
+  #   result.fillBlocks()
 
 
 proc renderTemplate*(nwt: Nwt, templateName: string, params: StringTableRef = newStringTable()): string =
@@ -137,27 +142,28 @@ proc renderTemplate*(nwt: Nwt, templateName: string, params: StringTableRef = ne
     raise newException(ValueError, "Template '$1' not found." % [templateName]) # UnknownTemplate
 
 
-  tokens = evalTemplate(nwt, templateName, params)
-  # for each in nwt.templates[templateName]:
-  #   if each.tokenType == NwtEval and each.value.startswith("extends"):
-  #     # echo "template has an extends"
-  #     baseTemplateTokens = nwt.templates[extractTemplateName(each.value)]
-  #   elif each.tokenType == NwtEval and each.value.startswith("set"):
-  #     let setCmd = newChatCommand(each.value)
-  #     params[setCmd.params[0]] = setCmd.params[1] 
-  #     echo "params[$1] = $2" % [setCmd.params[0], setCmd.params[1]]
-  #   # elif each.tokenType == NwtEval and each.value.startswith("if"):
-  #   #   let checkVar = extractTemplateName(each.value)      
-  #   tokens.add each
+  # tokens = evalTemplate(nwt, templateName, params)
+  for each in nwt.templates[templateName]:
+    if each.tokenType == NwtEval and each.value.startswith("extends"):
+      # echo "template has an extends"
+      baseTemplateTokens = nwt.templates[extractTemplateName(each.value)]
+    elif each.tokenType == NwtEval and each.value.startswith("set"):
+      let setCmd = newChatCommand(each.value)
+      params[setCmd.params[0]] = setCmd.params[1] 
+      echo "params[$1] = $2" % [setCmd.params[0], setCmd.params[1]]
+    # elif each.tokenType == NwtEval and each.value.startswith("if"):
+    #   let checkVar = extractTemplateName(each.value)      
+    tokens.add each
 
-  # if baseTemplateTokens.len > 0:
-  #   for token in baseTemplateTokens.fillBlocks(tokens):
-  #     result.add token.toStr(params)
-  # else:
-  #   for token in tokens:
-  #     result.add token.toStr(params)
-  for token in tokens.fillBlocks(tokens):
-    result.add token.toStr(params)
+  if baseTemplateTokens.len > 0:
+    for token in baseTemplateTokens.fillBlocks(tokens):
+      result.add token.toStr(params)
+  else:
+    for token in tokens:
+      result.add token.toStr(params)
+
+  # for token in tokens.fillBlocks(tokens):
+  #   result.add token.toStr(params)
 
 when isMainModule:
   # var nwt = newNwt()
@@ -221,6 +227,7 @@ when isMainModule:
       assert t.templates == initTable[system.string, seq[Token]]()
 
       t.addTemplate("foo.html","i am the {{faa}} template")
+      echo t.renderTemplate("foo.html",newStringTable({"faa": "super"}))
       assert t.renderTemplate("foo.html",newStringTable({"faa": "super"})) == "i am the super template"
 
       t.templates.add("base.html","{%block 'bar'%}{%endblock%}")

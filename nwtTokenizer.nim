@@ -122,7 +122,7 @@ proc newToken*(tokenType:NwtToken, value: string): Token =
   result.tokenType = tokenType
   result.value = value
 
-proc extractTemplateName(raw: string): string = 
+proc extractTemplateName*(raw: string): string = 
   ## returns the template name from
   ##  extends "base.html"
   ## returns "base.html"
