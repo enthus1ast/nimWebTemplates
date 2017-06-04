@@ -25,6 +25,7 @@ import parseutils
 import sequtils
 import os
 import tables
+import commandParser
 
 type 
   TemplateSyntaxError = ref object # of Exception
@@ -232,9 +233,15 @@ proc renderTemplate*(nwt: Nwt, templateName: string, params: StringTableRef = ne
   if not nwt.templates.hasKey(templateName):
     raise newException(ValueError, "Template '$1' not found." % [templateName]) # UnknownTemplate
   for each in nwt.templates[templateName]:
-    if each.tokenType == NwtEval and  each.value.startswith("extends"):
+    if each.tokenType == NwtEval and each.value.startswith("extends"):
       # echo "template has an extends"
       baseTemplateTokens = nwt.templates[extractTemplateName(each.value)]
+    elif each.tokenType == NwtEval and each.value.startswith("set"):
+      let setCmd = newChatCommand(each.value)
+      params[setCmd.params[0]] = setCmd.params[1] 
+      echo "params[$1] = $2" % [setCmd.params[0], setCmd.params[1]]
+    # elif each.tokenType == NwtEval and each.value.startswith("if"):
+    #   let checkVar = extractTemplateName(each.value)      
     tokens.add each
 
   if baseTemplateTokens.len > 0:
@@ -370,3 +377,10 @@ when isMainModule:
       # t.templates.add("extends.html","{%extends base.html%}{%block 'bar'%}Nim likes you{%endblock%}")
       # assert t.renderTemplate("extends.html") == "Nim likes you"      
       # addTemplate
+
+
+    block:
+      var t = newNwt("./templates/ji.html")
+      for each in t.templates["ji.html"]:
+        echo each
+      # for each in nwtTokenize(t.templates["ji.html"]):
