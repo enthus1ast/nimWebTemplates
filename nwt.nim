@@ -204,25 +204,25 @@ proc fillBlocks(baseTemplateTokens, tokens: seq[Token]): seq[Token] =
   var baseTemplateBlocks = getBlocks(baseTemplateTokens)  
 
   for baseBlock in baseTemplateBlocks.values:
-    if templateBlocks.contains(baseBlock.name):
-      if templateBlocks.contains(baseBlock.name): 
-        # we only do anything if we have that block in the extending template
-        result.delete(baseTemplateBlocks[baseBlock.name].posStart, baseTemplateBlocks[baseBlock.name].posEnd)
-        var startp = templateBlocks[baseBlock.name].posStart
-        var endp = templateBlocks[baseBlock.name].posEnd
-        # var endp   = tokens[templateBlocks[baseBlock.name]].posStart
-        var inspos = baseTemplateBlocks[baseBlock.name].posStart
-        result.insert(tokens[startp .. endp] , inspos)
+    if templateBlocks.contains(baseBlock.name): 
+      # we only do anything if we have that block in the extending template
+      result.delete(baseTemplateBlocks[baseBlock.name].posStart, baseTemplateBlocks[baseBlock.name].posEnd)
+      var startp = templateBlocks[baseBlock.name].posStart
+      var endp = templateBlocks[baseBlock.name].posEnd
+      # var endp   = tokens[templateBlocks[baseBlock.name]].posStart
+      var inspos = baseTemplateBlocks[baseBlock.name].posStart
+      result.insert(tokens[startp .. endp] , inspos)
 
 
 proc evalTemplate(nwt: Nwt, templateName: string, params: StringTableRef = newStringTable()): seq[Token] = 
   result = @[]
+  var tokens = newSeq[Token]()
   for each in nwt.templates[templateName]:
     if each.tokenType == NwtEval and each.value.startswith("extends"):
       # echo "template has an extends"
       # baseTemplateTokens = nwt.templates[extractTemplateName(each.value)]
-      # result = evalTemplate(nwt, extractTemplateName(each.value), params)
-      result.add evalTemplate(nwt, extractTemplateName(each.value), params)
+      result = evalTemplate(nwt, extractTemplateName(each.value), params)
+      # result.add evalTemplate(nwt, extractTemplateName(each.value), params)
 
       
     elif each.tokenType == NwtEval and each.value.startswith("set"):
@@ -231,7 +231,11 @@ proc evalTemplate(nwt: Nwt, templateName: string, params: StringTableRef = newSt
       echo "params[$1] = $2" % [setCmd.params[0], setCmd.params[1]]
     # elif each.tokenType == NwtEval and each.value.startswith("if"):
     #   let checkVar = extractTemplateName(each.value)      
-    result.add each
+    tokens.add each
+
+  for each in tokens:
+    result.fillBlocks()
+
 
 proc renderTemplate*(nwt: Nwt, templateName: string, params: StringTableRef = newStringTable()): string =
   ## this returns the fully rendered template.
@@ -266,12 +270,14 @@ proc renderTemplate*(nwt: Nwt, templateName: string, params: StringTableRef = ne
   #   #   let checkVar = extractTemplateName(each.value)      
   #   tokens.add each
 
-  if baseTemplateTokens.len > 0:
-    for token in baseTemplateTokens.fillBlocks(tokens):
-      result.add token.toStr(params)
-  else:
-    for token in tokens:
-      result.add token.toStr(params)
+  # if baseTemplateTokens.len > 0:
+  #   for token in baseTemplateTokens.fillBlocks(tokens):
+  #     result.add token.toStr(params)
+  # else:
+  #   for token in tokens:
+  #     result.add token.toStr(params)
+  for token in tokens.fillBlocks(tokens):
+    result.add token.toStr(params)
 
 when isMainModule:
   # var nwt = newNwt()
