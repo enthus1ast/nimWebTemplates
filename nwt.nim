@@ -27,6 +27,7 @@ import os
 import tables
 import commandParser
 import nwtTokenizer
+import json
 
 type
   Nwt = ref object of RootObj
@@ -122,7 +123,26 @@ proc evalTemplate(nwt: Nwt, templateName: string, params: StringTableRef = newSt
   #   result.fillBlocks()
 
 
-proc renderTemplate*(nwt: Nwt, templateName: string, params: StringTableRef = newStringTable()): string =
+proc toStr*(token: Token, params: JsonNode = newJObject()): string = 
+  ## transforms the token to its string representation 
+  # TODO should this be `$`?
+  case token.tokenType
+  of NwtString:
+    return token.value
+  of NwtComment:
+    return ""
+  of NwtVariable:
+    echo "token: ", token
+    var bufval = params.getOrDefault(token.value).getStr()
+    if bufval == "":
+      return "{{" & token.value & "}}" ## return the token when it could not be replaced
+    else:
+      return bufval
+  else:
+    return ""
+
+# proc renderTemplate*(nwt: Nwt, templateName: string, params: StringTableRef = newStringTable()): string =
+proc renderTemplate*(nwt: Nwt, templateName: string, params: JsonNode = newJObject()): string =  
   ## this returns the fully rendered template.
   ## all replacements are done.
   ## if the loaded template extends a base template, we parse this as well and fill all the blocks.
@@ -149,7 +169,7 @@ proc renderTemplate*(nwt: Nwt, templateName: string, params: StringTableRef = ne
       baseTemplateTokens = nwt.templates[extractTemplateName(each.value)]
     elif each.tokenType == NwtEval and each.value.startswith("set"):
       let setCmd = newChatCommand(each.value)
-      params[setCmd.params[0]] = setCmd.params[1] 
+      params[setCmd.params[0]] = % setCmd.params[1] 
       echo "params[$1] = $2" % [setCmd.params[0], setCmd.params[1]]
     # elif each.tokenType == NwtEval and each.value.startswith("if"):
     #   let checkVar = extractTemplateName(each.value)      
@@ -227,8 +247,8 @@ when isMainModule:
       assert t.templates == initTable[system.string, seq[Token]]()
 
       t.addTemplate("foo.html","i am the {{faa}} template")
-      echo t.renderTemplate("foo.html",newStringTable({"faa": "super"}))
-      assert t.renderTemplate("foo.html",newStringTable({"faa": "super"})) == "i am the super template"
+      echo t.renderTemplate("foo.html",%*{"faa": "super"})
+      assert t.renderTemplate("foo.html", %*{"faa": "super"}) == "i am the super template"
 
       t.templates.add("base.html","{%block 'bar'%}{%endblock%}")
       t.templates.add("extends.html","{%extends base.html%}{%block 'bar'%}Nim likes you{%endblock%}")

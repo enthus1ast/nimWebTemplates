@@ -1,0 +1,3 @@
+{%extends "styleBase.css"%}
+{%set bgcolor "red" %} 
+{%set color "white" %} 

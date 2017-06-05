@@ -4,8 +4,8 @@ import nwt
 import times
 import asyncdispatch
 # import """D:\flatdb\flatdb.nim"""
-# import json
-import tables
+import json
+# import tables
 
 var t = newNwt("templates/*")
 # var db = newFlatDb("tst.db", false)
@@ -13,9 +13,11 @@ var t = newNwt("templates/*")
   # discard db.append(%* {"site": "index.html", "content": "ich bin ein bisschen content"})
 routes:
   get "/":
-    resp t.renderTemplate("index.html", newStringTable({"content": $epochTime()}))
+    # resp t.renderTemplate("index.html", newStringTable({"content": $epochTime()}))
+    resp t.renderTemplate("index.html", %*{"content": $epochTime()})
   get "/@name":#& ".html"
-    resp t.renderTemplate(@"name" , newStringTable({"content": $epochTime()}))    
+    # resp t.renderTemplate(@"name" , newStringTable({"content": $epochTime()}))    
+    resp t.renderTemplate(@"name" , %*{"content": $epochTime()})    
     # resp t.renderTemplate("index.html",  newStringTable(db.queryOne equal("site","index.html")) ))
   # get "/ass":
   #   resp t.renderTemplate("ass.html", newStringTable({"content": $epochTime()}))
