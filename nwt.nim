@@ -98,32 +98,58 @@ proc fillBlocks*(baseTemplateTokens, tokens: seq[Token]): seq[Token] =  # TODO p
       result.insert(tokens[startp .. endp] , inspos)
 
 
-proc evalTemplate(nwt: Nwt, templateName: string, params: StringTableRef = newStringTable()): seq[Token] = 
+proc evalTemplate(nwt: Nwt, templateName: string, params: JsonNode = newJObject()): seq[Token] = 
   # discard
   result = @[]
+  var baseTemplateTokens = newSeq[Token]()
+  var importTemplateTokens = newSeq[Token]()
   var tokens = newSeq[Token]()
   for each in nwt.templates[templateName]:
+    echo each
     if each.tokenType == NwtEval and each.value.startswith("extends"):
-      # echo "template has an extends"
+      if baseTemplateTokens.len != 0: echo "already extendet"; continue
+      echo "template has an extends"
       # baseTemplateTokens = nwt.templates[extractTemplateName(each.value)]
 
       ## ONLY ONE BASE TEMPLATE IS SUPPORTED!! so only ONE {%extends%} __PER FILE__!
-      result = evalTemplate(nwt, extractTemplateName(each.value), params)
+      baseTemplateTokens = evalTemplate(nwt, extractTemplateName(each.value), params)
+      continue
+    
       # result.add evalTemplate(nwt, extractTemplateName(each.value), params)
 
     elif each.tokenType == NwtEval and each.value.startswith("set"):
       let setCmd = newChatCommand(each.value)
-      params[setCmd.params[0]] = setCmd.params[1] 
+      params[setCmd.params[0]] = %* setCmd.params[1] 
       echo "params[$1] = $2" % [setCmd.params[0], setCmd.params[1]]
     # elif each.tokenType == NwtEval and each.value.startswith("if"):
-    #   let checkVar = extractTemplateName(each.value)      
-    tokens.add each
+    #   let checkVar = extractTemplateName(each.value)
 
+    elif each.tokenType == NwtEval and each.value.startswith("import"):
+      let cmd = newChatCommand(each.value)
+      echo "@@@@---> importing template: ", cmd.params[0]
+
+      for t in nwt.evalTemplate(cmd.params[0], params):
+        importTemplateTokens.add t
+
+    else:
+      tokens.add each
+
+  if importTemplateTokens.len > 0:
+    echo "resolving import tokens:"
+    echo tokens
+    echo importTemplateTokens
+    tokens = tokens.fillBlocks(importTemplateTokens)
+
+  if baseTemplateTokens.len == 0:
+    return tokens
+  else:
+    return baseTemplateTokens.fillBlocks(tokens)
   # for each in tokens:
   #   result.fillBlocks()
 
 
 proc toStr*(token: Token, params: JsonNode = newJObject()): string = 
+  # echo token , " " ,params
   ## transforms the token to its string representation 
   # TODO should this be `$`?
   case token.tokenType
@@ -156,31 +182,36 @@ proc renderTemplate*(nwt: Nwt, templateName: string, params: JsonNode = newJObje
 
   result = ""
   var tokens: seq[Token] = @[]
-  var baseTemplateTokens: seq[Token] = @[]
+  # var baseTemplateTokens: seq[Token] = @[]
 
   if not nwt.templates.hasKey(templateName):
     raise newException(ValueError, "Template '$1' not found." % [templateName]) # UnknownTemplate
 
 
-  # tokens = evalTemplate(nwt, templateName, params)
-  for each in nwt.templates[templateName]:
-    if each.tokenType == NwtEval and each.value.startswith("extends"):
-      # echo "template has an extends"
-      baseTemplateTokens = nwt.templates[extractTemplateName(each.value)]
-    elif each.tokenType == NwtEval and each.value.startswith("set"):
-      let setCmd = newChatCommand(each.value)
-      params[setCmd.params[0]] = % setCmd.params[1] 
-      echo "params[$1] = $2" % [setCmd.params[0], setCmd.params[1]]
-    # elif each.tokenType == NwtEval and each.value.startswith("if"):
-    #   let checkVar = extractTemplateName(each.value)      
-    tokens.add each
+  tokens = evalTemplate(nwt, templateName, params)
+  # for each in nwt.templates[templateName]:
+  #   if each.tokenType == NwtEval and each.value.startswith("extends"):
+  #     # echo "template has an extends"
+  #     baseTemplateTokens = nwt.templates[extractTemplateName(each.value)]
+  #   elif each.tokenType == NwtEval and each.value.startswith("set"):
+  #     let setCmd = newChatCommand(each.value)
+  #     params[setCmd.params[0]] = % setCmd.params[1] 
+  #     echo "params[$1] = $2" % [setCmd.params[0], setCmd.params[1]]
+  #   # elif each.tokenType == NwtEval and each.value.startswith("if"):
+  #   #   let checkVar = extractTemplateName(each.value)      
+  #   tokens.add each
 
-  if baseTemplateTokens.len > 0:
-    for token in baseTemplateTokens.fillBlocks(tokens):
-      result.add token.toStr(params)
-  else:
-    for token in tokens:
-      result.add token.toStr(params)
+  # if baseTemplateTokens.len > 0:
+  #   for token in baseTemplateTokens.fillBlocks(tokens):
+  #     result.add token.toStr(params)
+  # else:
+
+  echo "###############"
+  echo tokens
+  echo "###############"
+  echo params
+  for token in tokens:
+    result.add token.toStr(params)
 
   # for token in tokens.fillBlocks(tokens):
   #   result.add token.toStr(params)
