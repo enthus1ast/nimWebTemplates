@@ -1,5 +1,17 @@
-## Experiment to build a basic
-## jinja like template parser
+#
+#
+#                  nimWebTemplates
+#        (c) Copyright 2017 David Krause
+#
+#    See the file "copying.txt", included in this
+#    distribution, for details about the copyright.
+#
+## :Author: David Krause (enthus1ast)
+## 
+## 
+## a jinja like template syntax parser
+## 
+## 
 ## Works:
 ##  - comments {# comment #}
 ##  - variable {{variable}}
@@ -19,6 +31,9 @@
 
 # {% set activeHome = 'active' %} Setzt variable
 
+
+
+
 import strtabs
 import strutils
 import parseutils
@@ -28,6 +43,31 @@ import tables
 import commandParser
 import nwtTokenizer
 import json
+import queues
+
+########################################################
+## For building a stack easily.....
+## Check if they exists in stdlib
+## 
+proc popr[T](s: var seq[T]): T =
+  ## removes and returns the rightest/last item
+  result = s[^1]
+  s.delete(s.len)
+
+proc popl[T](s: var seq[T]): T =
+  ## removes and return the leftest/first item
+  result = s[0]
+  s.delete(0)
+
+proc pushr[T](s: var seq[T], itm: T) =
+  ## adds a value to the back/right
+  s.add(itm)
+
+proc pushl[T](s: var seq[T], itm: T)=
+  ## adds a value to the front/left
+  s.insert(itm,0)
+########################################################
+
 
 type
   Nwt = ref object of RootObj
@@ -69,16 +109,26 @@ proc newNwt*(templatesDir: string = "./templates/*.html"): Nwt =
 proc getBlocks*(tokens: seq[Token]): Table[string, Block] = # TODO private
   # returns all {%block 'foo'%} statements as a Table of Block
   result = initTable[string, Block]()
+  var stack = newSeq[(string, int)]()
+
   var actual: Block = ("",0,0)
   for i, each in tokens:
     if each.tokenType == NwtEval and each.value.strip().startswith("block"): # block
-      actual.name = each.value.extractTemplateName()
-      actual.posStart = i
-    if each.tokenType == NwtEval and each.value.strip().startswith("endblock"):
+      stack.pushl( (each.value.extractTemplateName(), i ))
+      echo stack
+    elif each.tokenType == NwtEval and each.value.strip().startswith("endblock"):
+      echo stack
+      if stack.len == 0:
+        echo "UNBAlancEd "
+        raise newException(ValueError, "UNBALANCED BLOCKS" )
+               
+    # actual = ("",0,0)
+      (actual.name, actual.posStart) = stack.popl()
       actual.posEnd = i
       result[actual.name] = actual
       actual = ("",0,0)
-
+  if stack.len > 0:
+    raise newException(ValueError, "UNBALANCED BLOCKS" )
 proc fillBlocks*(baseTemplateTokens, tokens: seq[Token]): seq[Token] =  # TODO private
   ## This fills all the base template blocks with
   ## blocks from extending template
@@ -160,6 +210,22 @@ proc toStr*(token: Token, params: JsonNode = newJObject()): string =
   of NwtVariable:
     echo "token: ", token
     var bufval = params.getOrDefault(token.value).getStr()
+
+    
+    # var bufval = ""
+    # let node =  params.getOrDefault(token.value)
+    # echo "@@@@@@ ", node.kind
+    # case node.kind:
+    #   of JString:
+    #     bufval = node.getStr()
+    #   of JInt:
+    #     bufval = $(node.getNum())
+    #   of JFloat:
+    #     bufval = $(node.getFNum())
+    #   else:
+    #     bufval = ""
+
+    # var bufval = params.getOrDefault(token.value).getStr() #.str() #.getStr()
     if bufval == "":
       return "{{" & token.value & "}}" ## return the token when it could not be replaced
     else:
@@ -209,7 +275,8 @@ proc renderTemplate*(nwt: Nwt, templateName: string, params: JsonNode = newJObje
   echo "###############"
   echo tokens
   echo "###############"
-  echo params
+  if not params.isNil:
+    echo params
   for token in tokens:
     result.add token.toStr(params)
 

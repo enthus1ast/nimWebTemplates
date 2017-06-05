@@ -9,7 +9,7 @@ body {
 	right: 0px;
 	left:0px;
 	height:50px;
-	background-color: red;
+	background-color: "red";
 }
 
 
@@ -20,6 +20,5 @@ body {
 	left:0px;
 	bottom:0pc;
 	/*height:50px;*/
-	/*background-color: blue;*/
-	/*opacity: 0.1;*/
+	/*background-color: "red";*/
 }

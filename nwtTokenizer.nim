@@ -6,9 +6,10 @@
 #    See the file "copying.txt", included in this
 #    distribution, for details about the copyright.
 #
-
 ## :Author: David Krause (enthus1ast)
-
+##
+## a jinja like template syntax parser
+## 
 ## This is the tokenizer of nwt.
 ##
 ## From this html:
@@ -200,23 +201,6 @@ iterator nwtTokenize*(s: string): Token =
     if pos >= buffer.len: # TODO check if this has to be '>'
       ## Nothing to do for us here
       break
-
-proc toStr*(token: Token, params: StringTableRef = newStringTable()): string = 
-  ## transforms the token to its string representation 
-  # TODO should this be `$`?
-  case token.tokenType
-  of NwtString:
-    return token.value
-  of NwtComment:
-    return ""
-  of NwtVariable:
-    var bufval = params.getOrDefault(token.value)
-    if bufval == "":
-      return "{{" & token.value & "}}" ## return the token when it could not be replaced
-    else:
-      return bufval
-  else:
-    return ""
 
 
 when isMainModule:
