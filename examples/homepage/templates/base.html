@@ -1,0 +1,12 @@
+<!-- bloat -->
+{%import "menu.html"%}
+<html>
+	<head>
+		<title>myHomepage {{title}}</title>
+		<link rel="stylesheet" href="{{style}}">
+	</head>
+	<body>
+		<div id="menu">{%block "menu"%}{%endblock%}</div>
+		<div id="content">{%block "content"%}{%endblock%}</div>
+	</body>
+</html>

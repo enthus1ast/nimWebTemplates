@@ -1,0 +1,3 @@
+{%set bg "black"%}
+{%set fg "white"%}
+{%extends "base.css"%}
