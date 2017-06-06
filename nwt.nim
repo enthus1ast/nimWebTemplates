@@ -121,9 +121,9 @@ proc getBlocks*(tokens: seq[Token], starting="block", ending="endblock" ): Table
       stack.pushl( (cmd, i ))
       echo stack
     elif each.tokenType == NwtEval and each.value.strip().startswith(ending):
-      echo stack
       if stack.len == 0:
-        raise newException(ValueError, "UNBALANCED BLOCKS" )
+        echo stack
+        raise newException(ValueError, "UNBALANCED BLOCKS to many closeing tags for: " & $each )
       var cmd: ChatCommand
       (cmd, actual.posStart) = stack.popl()
       actual.name = cmd.cmd
@@ -133,7 +133,8 @@ proc getBlocks*(tokens: seq[Token], starting="block", ending="endblock" ): Table
       result.add(actual.name, actual)
       actual = ("", ChatCommand() ,0,0)
   if stack.len > 0:
-    raise newException(ValueError, "UNBALANCED BLOCKS" )
+    echo stack
+    raise newException(ValueError, "UNBALANCED BLOCKS to many opening tags for: " & starting )
 proc fillBlocks*(baseTemplateTokens, tokens: seq[Token]): seq[Token] =  # TODO private
   ## This fills all the base template blocks with
   ## blocks from extending template
@@ -181,9 +182,14 @@ proc evalTemplate(nwt: Nwt, templateName: string, params: JsonNode = newJObject(
 
     elif each.tokenType == NwtEval and each.value.startswith("import"):
       let cmd = newChatCommand(each.value)
-      echo "@@@@---> importing template: ", cmd.params[0]
+      let importTemplateName = cmd.params[0]
 
-      for t in nwt.evalTemplate(cmd.params[0], params):
+      if importTemplateName == templateName:
+        raise newException(ValueError, "template $1 could not import itself" % templateName)
+
+      echo "@@@@---> importing template: ", importTemplateName
+
+      for t in nwt.evalTemplate(importTemplateName, params):
         importTemplateTokens.add t
 
     else:
