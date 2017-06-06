@@ -242,6 +242,27 @@ proc toStr*(token: Token, params: JsonNode = newJObject()): string =
   else:
     return ""
 
+
+proc evalScripts(nwt: Nwt, tokens: seq[Token] , params: JsonNode = newJObject()): seq[Token] =  
+  ## This evaluates the template logic.
+  ## After this the template is fully epanded an is ready to convert it to strings
+  ## TODO we should avoid looping multiple times....
+  var forBlocks = getBlocks(tokens, starting = "for", ending = "endfor")
+  ### [foo, in, baa]
+  echo "@@@______----: "
+  # for
+  # for token in tokens:
+
+  for forBlock in forBlocks.values: 
+    echo forBlock ## (name: item, cmd: for --> @[item, in, items], posStart: 0, posEnd: 4)
+    
+    # tokens.insert()
+
+  #     for idx, each in params[forBlock.cmd.params[2]]:
+  #       echo forBlock.cmd.params[0], "->", each # , "-> ", each , "[" , idx , "]"
+
+  return tokens
+
 # proc renderTemplate*(nwt: Nwt, templateName: string, params: StringTableRef = newStringTable()): string =
 proc renderTemplate*(nwt: Nwt, templateName: string, params: JsonNode = newJObject()): string =  
   ## this returns the fully rendered template.
@@ -250,47 +271,23 @@ proc renderTemplate*(nwt: Nwt, templateName: string, params: JsonNode = newJObje
   ## ATM this is not recursively checking for extends on child templates! 
   ## So only one 'extends' level is supported.
   ## 
-  
   when not defined release:
     echo "WARNING THIS IS AN DEBUG BUILD. NWT PARSES THE HTML ON EVERY GET; THIS IS SLOW"
     nwt.loadTemplates(nwt.templatesDir)
-
+  
   result = ""
   var tokens: seq[Token] = @[]
-  # var baseTemplateTokens: seq[Token] = @[]
 
   if not nwt.templates.hasKey(templateName):
     raise newException(ValueError, "Template '$1' not found." % [templateName]) # UnknownTemplate
+  
+  tokens = nwt.evalTemplate(templateName, params)
+  tokens = nwt.evalScripts(tokens, params) # expands `for` `if` etc
 
 
-  tokens = evalTemplate(nwt, templateName, params)
-  # for each in nwt.templates[templateName]:
-  #   if each.tokenType == NwtEval and each.value.startswith("extends"):
-  #     # echo "template has an extends"
-  #     baseTemplateTokens = nwt.templates[extractTemplateName(each.value)]
-  #   elif each.tokenType == NwtEval and each.value.startswith("set"):
-  #     let setCmd = newChatCommand(each.value)
-  #     params[setCmd.params[0]] = % setCmd.params[1] 
-  #     echo "params[$1] = $2" % [setCmd.params[0], setCmd.params[1]]
-  #   # elif each.tokenType == NwtEval and each.value.startswith("if"):
-  #   #   let checkVar = extractTemplateName(each.value)      
-  #   tokens.add each
-
-  # if baseTemplateTokens.len > 0:
-  #   for token in baseTemplateTokens.fillBlocks(tokens):
-  #     result.add token.toStr(params)
-  # else:
-
-  echo "###############"
-  # echo tokens
-  echo "###############"
-  if not params.isNil:
-    echo params
   for token in tokens:
     result.add token.toStr(params)
 
-  # for token in tokens.fillBlocks(tokens):
-  #   result.add token.toStr(params)
 
 when isMainModule:
   # var nwt = newNwt()
