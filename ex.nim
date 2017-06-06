@@ -12,6 +12,9 @@ var t = newNwt("templates/*")
 # if db.nodes.len == 0:
   # discard db.append(%* {"site": "index.html", "content": "ich bin ein bisschen content"})
 routes:
+  get "/jesterLeakTest":
+    resp "ok"
+
   get "/":
     # resp t.renderTemplate("index.html", newStringTable({"content": $epochTime()}))
     resp t.renderTemplate("index.html", %*{"content": $epochTime()})

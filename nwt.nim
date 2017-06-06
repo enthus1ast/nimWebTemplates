@@ -119,7 +119,6 @@ proc getBlocks*(tokens: seq[Token], starting="block", ending="endblock" ): Table
       var cmd = newChatCommand(each.value)
       # stack.pushl( (each.value.extractTemplateName(), i ))
       stack.pushl( (cmd, i ))
-      echo stack
     elif each.tokenType == NwtEval and each.value.strip().startswith(ending):
       if stack.len == 0:
         echo stack
@@ -133,8 +132,7 @@ proc getBlocks*(tokens: seq[Token], starting="block", ending="endblock" ): Table
       result.add(actual.name, actual)
       actual = ("", ChatCommand() ,0,0)
   if stack.len > 0:
-    echo stack
-    raise newException(ValueError, "UNBALANCED BLOCKS to many opening tags for: " & starting )
+    raise newException(ValueError, "UNBALANCED BLOCKS to many opening tags for: " & starting & "\nstack:\n" & $stack )
 proc fillBlocks*(baseTemplateTokens, tokens: seq[Token]): seq[Token] =  # TODO private
   ## This fills all the base template blocks with
   ## blocks from extending template
@@ -161,7 +159,7 @@ proc evalTemplate(nwt: Nwt, templateName: string, params: JsonNode = newJObject(
   var importTemplateTokens = newSeq[Token]()
   var tokens = newSeq[Token]()
   for each in nwt.templates[templateName]:
-    echo each
+    # echo each
     if each.tokenType == NwtEval and each.value.startswith("extends"):
       if baseTemplateTokens.len != 0: echo "already extendet"; continue
       echo "template has an extends"
@@ -197,8 +195,8 @@ proc evalTemplate(nwt: Nwt, templateName: string, params: JsonNode = newJObject(
 
   if importTemplateTokens.len > 0:
     echo "resolving import tokens:"
-    echo tokens
-    echo importTemplateTokens
+    # echo tokens
+    # echo importTemplateTokens
     tokens = tokens.fillBlocks(importTemplateTokens)
 
   if baseTemplateTokens.len == 0:
@@ -284,7 +282,7 @@ proc renderTemplate*(nwt: Nwt, templateName: string, params: JsonNode = newJObje
   # else:
 
   echo "###############"
-  echo tokens
+  # echo tokens
   echo "###############"
   if not params.isNil:
     echo params
