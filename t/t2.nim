@@ -2,6 +2,7 @@ import ../nwt
 import ../nwtTokenizer
 import sequtils
 import tables
+import commandParser
 
 # var baseStr = """{%block "title" %}BASE{%endblock%}"""
 # var baseTokenList = toSeq(nwtTokenize baseStr)
@@ -25,8 +26,16 @@ import tables
 
 
 # var baseStr = """{%block "title" %}BASE {%block "klaus" %}ich bin der klaus{%endblock%} ich bin _NICH_ der klaus{%endblock%} hallo """
-var baseStr = """{%block "title" %}BASE {%block "klaus" %}ich bin der klaus ich bin _NICH_ der klaus{%endblock%} hallo {%endblock%}a asdfasf"""
+# var baseStr = """{%block "title" %}BASE {%block "klaus" %}ich bin der klaus ich bin _NICH_ der klaus{%endblock%} hallo {%endblock%}a asdfasf"""
+# var baseTokenList = toSeq(nwtTokenize baseStr)
+# echo baseTokenList
+# for k,v in getBlocks(baseTokenList).pairs:
+#   echo k, "->", v
+
+
+
+var baseStr = """{%for foo in baa%}BASE {%for uggu in foo%}ich bin der klaus {{uggu}} ich bin _NICH_ der klaus{%endfor%} hallo {%endfor%}a asdfasf"""
 var baseTokenList = toSeq(nwtTokenize baseStr)
 echo baseTokenList
-for k,v in getBlocks(baseTokenList).pairs:
+for k,v in getBlocks(baseTokenList, "for", "endfor").pairs:
   echo k, "->", v

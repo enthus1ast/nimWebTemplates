@@ -75,7 +75,7 @@ type
     templates*: Table[string,seq[Token]] ## we parse templates on start
     templatesDir*: string
 
-  Block = tuple[name: string, posStart: int, posEnd: int]
+  Block = tuple[name: string, cmd: ChatCommand, posStart: int, posEnd: int]
 
 proc add*(tokens: var Table[string,seq[Token]], templateName, templateStr: string) =
   ## parses and adds/updates a template
@@ -106,27 +106,32 @@ proc newNwt*(templatesDir: string = "./templates/*.html"): Nwt =
   result.templatesDir = templatesDir
   result.loadTemplates(templatesDir)
 
-proc getBlocks*(tokens: seq[Token]): Table[string, Block] = # TODO private
+# proc newBlock()
+
+proc getBlocks*(tokens: seq[Token], starting="block", ending="endblock" ): Table[string, Block] = # TODO private
   # returns all {%block 'foo'%} statements as a Table of Block
   result = initTable[string, Block]()
-  var stack = newSeq[(string, int)]()
+  var stack = newSeq[(ChatCommand, int)]()
 
-  var actual: Block = ("",0,0)
+  var actual: Block = ("",ChatCommand(),0,0)
   for i, each in tokens:
-    if each.tokenType == NwtEval and each.value.strip().startswith("block"): # block
-      stack.pushl( (each.value.extractTemplateName(), i ))
+    if each.tokenType == NwtEval and each.value.strip().startswith(starting): # block
+      var cmd = newChatCommand(each.value)
+      # stack.pushl( (each.value.extractTemplateName(), i ))
+      stack.pushl( (cmd, i ))
       echo stack
-    elif each.tokenType == NwtEval and each.value.strip().startswith("endblock"):
+    elif each.tokenType == NwtEval and each.value.strip().startswith(ending):
       echo stack
       if stack.len == 0:
-        echo "UNBAlancEd "
         raise newException(ValueError, "UNBALANCED BLOCKS" )
-               
-    # actual = ("",0,0)
-      (actual.name, actual.posStart) = stack.popl()
+      var cmd: ChatCommand
+      (cmd, actual.posStart) = stack.popl()
+      actual.name = cmd.cmd
+      actual.cmd = cmd
       actual.posEnd = i
-      result[actual.name] = actual
-      actual = ("",0,0)
+      # result[actual.name] = actual
+      result.add(actual.name, actual)
+      actual = ("", ChatCommand() ,0,0)
   if stack.len > 0:
     raise newException(ValueError, "UNBALANCED BLOCKS" )
 proc fillBlocks*(baseTemplateTokens, tokens: seq[Token]): seq[Token] =  # TODO private

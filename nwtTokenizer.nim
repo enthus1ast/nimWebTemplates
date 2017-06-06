@@ -128,7 +128,7 @@ proc extractTemplateName*(raw: string): string =
   ##  extends "base.html"
   ## returns "base.html"
   var parts = raw.strip().split(" ")
-  if parts.len != 2:
+  if parts.len < 2:
     # TemplateSyntaxError
     raise newException(ValueError, "Could not extract template name from '$1'" % [raw])
     # raise (OsError, "Could not extract template name from '$1'" % [raw])
