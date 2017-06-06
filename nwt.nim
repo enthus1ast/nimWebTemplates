@@ -123,10 +123,10 @@ proc getBlocks*(tokens: seq[Token], starting="block", ending="endblock" ): Table
     elif each.tokenType == NwtEval and each.value.strip().startswith(ending):
       if stack.len == 0:
         echo stack
-        raise newException(ValueError, "UNBALANCED BLOCKS to many closeing tags for: " & $each )
+        raise newException(ValueError, "UNBALANCED BLOCKS to many closeing tags for: " & $each & " " & $tokens )
       var cmd: ChatCommand
       (cmd, actual.posStart) = stack.popl()
-      actual.name = cmd.cmd
+      actual.name = cmd.params[0]
       actual.cmd = cmd
       actual.posEnd = i
       # result[actual.name] = actual
