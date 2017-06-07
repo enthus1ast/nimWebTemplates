@@ -10,7 +10,7 @@ import json
 var t = newNwt("templates/*")
 
 echo "FREEZING TEMPLATES (JUST FOR FUN)"
-t.freeze()
+# t.freeze()
 
 # var db = newFlatDb("tst.db", false)
 # if db.nodes.len == 0:

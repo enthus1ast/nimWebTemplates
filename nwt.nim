@@ -133,6 +133,7 @@ proc getBlocks*(tokens: seq[Token], starting="block", ending="endblock" ): Table
       actual = ("", ChatCommand() ,0,0)
   if stack.len > 0:
     raise newException(ValueError, "UNBALANCED BLOCKS to many opening tags for: " & starting & "\nstack:\n" & $stack )
+
 proc fillBlocks*(baseTemplateTokens, tokens: seq[Token]): seq[Token] =  # TODO private
   ## This fills all the base template blocks with
   ## blocks from extending template
@@ -140,6 +141,8 @@ proc fillBlocks*(baseTemplateTokens, tokens: seq[Token]): seq[Token] =  # TODO p
   # @[(name: content2, posStart: 3, posEnd: 4), (name: peter, posStart: 6, posEnd: 8)]
   result = baseTemplateTokens
   var templateBlocks = getBlocks(tokens)
+  # echo templateBlocks
+  # quit()
   var baseTemplateBlocks = getBlocks(baseTemplateTokens)  
 
   for baseBlock in baseTemplateBlocks.values:
@@ -188,6 +191,7 @@ proc evalTemplate(nwt: Nwt, templateName: string, params: JsonNode = newJObject(
       echo "@@@@---> importing template: ", importTemplateName
 
       for t in nwt.evalTemplate(importTemplateName, params):
+        echo t
         importTemplateTokens.add t
 
     else:
@@ -195,10 +199,13 @@ proc evalTemplate(nwt: Nwt, templateName: string, params: JsonNode = newJObject(
 
   if importTemplateTokens.len > 0:
     echo "resolving import tokens:"
-    # echo tokens
-    # echo importTemplateTokens
+    echo tokens
+    echo "####################################################"
+    echo importTemplateTokens
     tokens = tokens.fillBlocks(importTemplateTokens)
-
+    echo "====================================================="
+    echo tokens
+    # quit()
   if baseTemplateTokens.len == 0:
     return tokens
   else:
@@ -234,7 +241,7 @@ proc toStr*(token: Token, params: JsonNode = newJObject()): string =
         bufval = $(node.getFNum())
       else:
         bufval = ""
-        
+
     if bufval == "":
       return "{{" & token.value & "}}" ## return the token when it could not be replaced
     else:
@@ -394,4 +401,4 @@ when isMainModule:
 
     block:
       var t = newNwt("./templates/*.html")  
-      t.freeze()
+      # t.freeze()
