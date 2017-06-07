@@ -291,7 +291,7 @@ proc renderTemplate*(nwt: Nwt, templateName: string, params: JsonNode = newJObje
 
 proc freeze*(nwt: Nwt, params: JsonNode = newJObject(), outputPath: string = "./freezed/", staticPath = "./public/") =
   ## generates the html for each template.
-  ## writes it (with its template name) to the output path
+  ## writes to the output path
 
   if not dirExists(outputPath): createDir(outputPath)
 
@@ -304,23 +304,6 @@ proc freeze*(nwt: Nwt, params: JsonNode = newJObject(), outputPath: string = "./
     var fh = open( freezedFilePath, fmWrite )
     fh.write(nwt.renderTemplate(name, params))
     fh.close()
-
-
-  ## new
-  # if staticPath.len != 0 and dirExists(staticPath):
-  #   copyDir(staticPath, outputPath)
-
-  ## old
-  # if staticFolder.len != 0 and dirExists(staticFolder):
-  #   for kind, path in walkDir(staticFolder):
-  #     let fileLocation = outputPath & path[staticFolder.len  .. ^1 ] 
-  #     echo path, " ---> ", fileLocation
-  #     copyFile( path, fileLocation )
-
-
-
-  
-
 
 when isMainModule:
   # var nwt = newNwt()
