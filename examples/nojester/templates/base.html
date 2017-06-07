@@ -1,0 +1,26 @@
+{%import footer.html%}
+{%import menu.html%}
+<html>
+	<head>
+		<title>{{title}}</title>
+		<link rel="stylesheet" href="style.css">
+	</head>
+
+	<body>
+		<p>
+			<b>
+				{%block menu%}{%endblock%}
+			</b>
+		</p>
+
+		<div id="content">
+			{%block content%}{%endblock%}
+		</div>
+
+		<p>
+			<i id="footer">
+				{%block footer%}{%endblock%}
+			</i>
+		</p>
+	</body>
+</html>

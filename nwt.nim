@@ -289,6 +289,25 @@ proc renderTemplate*(nwt: Nwt, templateName: string, params: JsonNode = newJObje
     result.add token.toStr(params)
 
 
+proc freeze*(nwt: Nwt, params: JsonNode = newJObject(), outputPath: string = "./freezed/", staticFolder = "./public") =
+  ## generates the html for each template.
+  ## writes it (with its template name) to the output path
+  if not dirExists(outputPath): createDir(outputPath)
+  for name, tmpl in nwt.templates:
+    let freezedFilePath = outputPath / name 
+    echo "Freezing: ", name, " to: ", freezedFilePath
+    open( freezedFilePath, fmWrite ).write(nwt.renderTemplate(name, params))
+
+
+  if staticFolder.len != 0 and dirExists(staticFolder):
+    for kind, path in walkDir(staticFolder):
+      copyFile( path, outputPath )
+
+
+
+  
+
+
 when isMainModule:
   # var nwt = newNwt()
   # echo "Loaded $1 templates." % [$nwt.templates.len]
@@ -372,4 +391,9 @@ when isMainModule:
       var t = newNwt("./templates/ji.html")
       for each in t.templates["ji.html"]:
         echo each
+
       # for each in nwtTokenize(t.templates["ji.html"]):
+
+    block:
+      var t = newNwt("./templates/*.html")  
+      t.freeze()

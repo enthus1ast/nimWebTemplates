@@ -8,6 +8,10 @@ import json
 # import tables
 
 var t = newNwt("templates/*")
+
+echo "FREEZING TEMPLATES (JUST FOR FUN)"
+t.freeze()
+
 # var db = newFlatDb("tst.db", false)
 # if db.nodes.len == 0:
   # discard db.append(%* {"site": "index.html", "content": "ich bin ein bisschen content"})
