@@ -289,19 +289,33 @@ proc renderTemplate*(nwt: Nwt, templateName: string, params: JsonNode = newJObje
     result.add token.toStr(params)
 
 
-proc freeze*(nwt: Nwt, params: JsonNode = newJObject(), outputPath: string = "./freezed/", staticFolder = "./public") =
+proc freeze*(nwt: Nwt, params: JsonNode = newJObject(), outputPath: string = "./freezed/", staticPath = "./public/") =
   ## generates the html for each template.
   ## writes it (with its template name) to the output path
+
   if not dirExists(outputPath): createDir(outputPath)
+
+  if staticPath.len != 0 and dirExists(staticPath):
+    copyDir( staticPath.strip(false, true,  {'/'}) , outputPath)
+
   for name, tmpl in nwt.templates:
     let freezedFilePath = outputPath / name 
     echo "Freezing: ", name, " to: ", freezedFilePath
-    open( freezedFilePath, fmWrite ).write(nwt.renderTemplate(name, params))
+    var fh = open( freezedFilePath, fmWrite )
+    fh.write(nwt.renderTemplate(name, params))
+    fh.close()
 
 
-  if staticFolder.len != 0 and dirExists(staticFolder):
-    for kind, path in walkDir(staticFolder):
-      copyFile( path, outputPath )
+  ## new
+  # if staticPath.len != 0 and dirExists(staticPath):
+  #   copyDir(staticPath, outputPath)
+
+  ## old
+  # if staticFolder.len != 0 and dirExists(staticFolder):
+  #   for kind, path in walkDir(staticFolder):
+  #     let fileLocation = outputPath & path[staticFolder.len  .. ^1 ] 
+  #     echo path, " ---> ", fileLocation
+  #     copyFile( path, fileLocation )
 
 
 

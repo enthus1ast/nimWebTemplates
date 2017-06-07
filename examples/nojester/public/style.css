@@ -1,6 +1,7 @@
 body {
 	background-color: #171921;
 	color:white;
+	font-size: 22px;
 }
 
 a {
@@ -20,3 +21,4 @@ h1 {
 	margin-left: auto;
 	margin-right: auto;
 }
+
