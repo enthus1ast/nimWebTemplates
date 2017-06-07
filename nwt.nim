@@ -122,7 +122,7 @@ proc getBlocks*(tokens: seq[Token], starting="block", ending="endblock" ): Table
     elif each.tokenType == NwtEval and each.value.strip().startswith(ending):
       if stack.len == 0:
         echo stack
-        raise newException(ValueError, "UNBALANCED BLOCKS to many closeing tags for: " & $each & " " & $tokens )
+        raise newException(ValueError, "UNBALANCED BLOCKS too many closeing tags for: " & $each & " " & $tokens )
       var cmd: ChatCommand
       (cmd, actual.posStart) = stack.popl()
       actual.name = cmd.params[0]
@@ -134,25 +134,44 @@ proc getBlocks*(tokens: seq[Token], starting="block", ending="endblock" ): Table
   if stack.len > 0:
     raise newException(ValueError, "UNBALANCED BLOCKS to many opening tags for: " & starting & "\nstack:\n" & $stack )
 
-proc fillBlocks*(baseTemplateTokens, tokens: seq[Token]): seq[Token] =  # TODO private
+# var blockTable: Table[string, Block] = initTable[string, Block]()
+var blockTable: Table[string, seq[Token]] = initTable[string, seq[Token]]()
+
+proc fillBlocks*(baseTemplateTokens, tokens: seq[Token], params: JsonNode): seq[Token] =  # TODO private
   ## This fills all the base template blocks with
   ## blocks from extending template
   # @[(name: content2, posStart: 2, posEnd: 4), (name: peter, posStart: 6, posEnd: 8)]
   # @[(name: content2, posStart: 3, posEnd: 4), (name: peter, posStart: 6, posEnd: 8)]
   result = baseTemplateTokens
   var templateBlocks = getBlocks(tokens)
+  # var ifBlocks = getBlocks
+
   # echo templateBlocks
   # quit()
   var baseTemplateBlocks = getBlocks(baseTemplateTokens)  
 
+  # TODO .....
+  for k,v in templateBlocks:
+    blockTable[k] = tokens[v.posStart .. v.posEnd]
+  # for k,v in baseTemplateBlocks:
+  #   blockTable[k] = v    
+
   for baseBlock in baseTemplateBlocks.values:
+
+
     if templateBlocks.contains(baseBlock.name): 
-      # we only do anything if we have that block in the extending template
-      result.delete(baseTemplateBlocks[baseBlock.name].posStart, baseTemplateBlocks[baseBlock.name].posEnd)
       var startp = templateBlocks[baseBlock.name].posStart
       var endp = templateBlocks[baseBlock.name].posEnd
+      var blockTokens = tokens[startp .. endp]
+
+      blockTable[baseBlock.name] = blockTokens
+
+
+      ## The main block replacement
+      # we only do anything if we have that block in the extending template
       var inspos = baseTemplateBlocks[baseBlock.name].posStart
-      result.insert(tokens[startp .. endp] , inspos)
+      result.delete(baseTemplateBlocks[baseBlock.name].posStart, baseTemplateBlocks[baseBlock.name].posEnd)
+      result.insert(blockTokens , inspos)
 
 
 proc evalTemplate(nwt: Nwt, templateName: string, params: JsonNode = newJObject()): seq[Token] = 
@@ -202,14 +221,14 @@ proc evalTemplate(nwt: Nwt, templateName: string, params: JsonNode = newJObject(
     echo tokens
     echo "####################################################"
     echo importTemplateTokens
-    tokens = tokens.fillBlocks(importTemplateTokens)
+    tokens = tokens.fillBlocks(importTemplateTokens, params)
     echo "====================================================="
     echo tokens
     # quit()
   if baseTemplateTokens.len == 0:
     return tokens
   else:
-    return baseTemplateTokens.fillBlocks(tokens)
+    return baseTemplateTokens.fillBlocks(tokens, params)
   # for each in tokens:
   #   result.fillBlocks()
 
@@ -235,6 +254,17 @@ proc toStr*(token: Token, params: JsonNode = newJObject()): string =
       case node.kind
       of JString:
         bufval = node.getStr()
+        # TODO dirty hack ? 
+        if bufval.startswith("self."):
+          echo "NODE STARTS WITH self. :: ", bufval
+          var cmd = newChatCommand(bufval)
+          bufval.setLen(0)
+          echo "BLOCKTABLE: ", blockTable[cmd.params[1]]
+          for token in blockTable[cmd.params[1]]:
+              bufval.add token.toStr()
+
+          # for 
+
       of JInt:  
         bufval = $(node.getNum())
       of JFloat:
@@ -256,12 +286,12 @@ proc evalScripts(nwt: Nwt, tokens: seq[Token] , params: JsonNode = newJObject())
   ## TODO we should avoid looping multiple times....
   var forBlocks = getBlocks(tokens, starting = "for", ending = "endfor")
   ### [foo, in, baa]
-  echo "@@@______----: "
+  # echo "@@@______----: "
   # for
   # for token in tokens:
 
-  for forBlock in forBlocks.values: 
-    echo forBlock ## (name: item, cmd: for --> @[item, in, items], posStart: 0, posEnd: 4)
+  # for forBlock in forBlocks.values: 
+  #   echo forBlock ## (name: item, cmd: for --> @[item, in, items], posStart: 0, posEnd: 4)
     
     
     # tokens.insert()
@@ -366,7 +396,7 @@ when isMainModule:
       for each in getBlocks(childTmpl).values:
         echo each
 
-      echo baseTmpl.fillBlocks(childTmpl)
+      echo baseTmpl.fillBlocks(childTmpl, newJObject())
 
 
     # addTemplate tests
@@ -392,13 +422,13 @@ when isMainModule:
       # addTemplate
 
 
-    block:
-      var t = newNwt("./templates/ji.html")
-      for each in t.templates["ji.html"]:
-        echo each
+    # block:
+    #   var t = newNwt("./templates/ji.html")
+    #   for each in t.templates["ji.html"]:
+    #     echo each
 
-      # for each in nwtTokenize(t.templates["ji.html"]):
+    #   # for each in nwtTokenize(t.templates["ji.html"]):
 
-    block:
-      var t = newNwt("./templates/*.html")  
-      # t.freeze()
+    # block:
+    #   var t = newNwt("./templates/*.html")  
+    #   # t.freeze()
