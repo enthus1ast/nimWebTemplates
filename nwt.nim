@@ -211,6 +211,9 @@ proc toStr*(token: Token, params: JsonNode = newJObject()): string =
   # echo token , " " ,params
   ## transforms the token to its string representation 
   # TODO should this be `$`?
+
+  # template emptyValue():
+
   case token.tokenType
   of NwtString:
     return token.value
@@ -218,23 +221,20 @@ proc toStr*(token: Token, params: JsonNode = newJObject()): string =
     return ""
   of NwtVariable:
     echo "token: ", token
-    var bufval = params.getOrDefault(token.value).getStr()
-
-    
-    # var bufval = ""
-    # let node =  params.getOrDefault(token.value)
-    # echo "@@@@@@ ", node.kind
-    # case node.kind:
-    #   of JString:
-    #     bufval = node.getStr()
-    #   of JInt:
-    #     bufval = $(node.getNum())
-    #   of JFloat:
-    #     bufval = $(node.getFNum())
-    #   else:
-    #     bufval = ""
-
-    # var bufval = params.getOrDefault(token.value).getStr() #.str() #.getStr()
+    var node = params.getOrDefault(token.value)
+    var bufval = ""
+    if not node.isNil:
+      echo "@@@@@@ ", node
+      case node.kind
+      of JString:
+        bufval = node.getStr()
+      of JInt:  
+        bufval = $(node.getNum())
+      of JFloat:
+        bufval = $(node.getFNum())
+      else:
+        bufval = ""
+        
     if bufval == "":
       return "{{" & token.value & "}}" ## return the token when it could not be replaced
     else:
@@ -255,6 +255,7 @@ proc evalScripts(nwt: Nwt, tokens: seq[Token] , params: JsonNode = newJObject())
 
   for forBlock in forBlocks.values: 
     echo forBlock ## (name: item, cmd: for --> @[item, in, items], posStart: 0, posEnd: 4)
+    
     
     # tokens.insert()
 

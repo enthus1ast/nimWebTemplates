@@ -20,8 +20,12 @@ if db.nodes.len == 0:
 
 routes:
   get "/":
-    resp t.renderTemplate("list.html",  %* {"entries": $db.nodes} )
+    resp t.renderTemplate("list.html",  %* {"entries": $db.nodes, "userid": 10} )
     
+  get "/numbertest":
+    resp t.renderTemplate("numbertest.html", %* {"float": 123.99, "int": 8080} )
+
   get "/@link":
+    # entry{"float", "int"} =  #{"float": 123.99, "int": 8080}
     resp t.renderTemplate("detail.html", db.queryOne equal("link", @"link") )
 runForever()
