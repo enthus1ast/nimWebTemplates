@@ -82,6 +82,19 @@ block: ## self.templatename tests
   assert tmpls.renderTemplate("run.html") == "b1b2b3b4"   
 
 
+# block: ## if tests
+#   var tmpls = newNwt()
+#   tmpls.templates.add("run.html", "{%if false%}1{%endif%}")
+#   assert tmpls.renderTemplate("run.html") == ""  
+
+#   tmpls.templates.add("run.html", "{%if true%}1{%endif%}")
+#   assert tmpls.renderTemplate("run.html") == "1"  
+
+#   tmpls.templates.add("run.html", "{%if 1%}1{%endif%}")
+#   assert tmpls.renderTemplate("run.html") == "1"  
+
+## 
+
 # block: #double extends are not supported
 #   tmpls.templates.add("ext1.html", "{%block ext1%}e1{%endblock%}") 
 #   tmpls.templates.add("ext2.html", "{%block ext1%}e2{%endblock%}") 

@@ -184,43 +184,39 @@ proc evalTemplate(nwt: Nwt, templateName: string, params: JsonNode = newJObject(
   var importTemplateTokens = newSeq[Token]()
   var tokens = newSeq[Token]()
   var alreadyExtendet = false
-  for each in nwt.templates[templateName]:
+
+  for idx, each in nwt.templates[templateName]:
     # echo each
     if each.tokenType == NwtEval and each.value.startswith("extends"):
       if alreadyExtendet: 
-        # echo "already extendet"
         continue
-      # echo "template has an extends"
       alreadyExtendet = true
-      # baseTemplateTokens = nwt.templates[extractTemplateName(each.value)]
 
       ## ONLY ONE BASE TEMPLATE IS SUPPORTED!! so only ONE {%extends%} __PER FILE__!
       baseTemplateTokens = evalTemplate(nwt, extractTemplateName(each.value), params)
       continue
-    
-      # result.add evalTemplate(nwt, extractTemplateName(each.value), params)
-
+  
     elif each.tokenType == NwtEval and each.value.startswith("set"):
       let setCmd = newChatCommand(each.value)
       params[setCmd.params[0]] = %* setCmd.params[1] 
       # echo "params[$1] = $2" % [setCmd.params[0], setCmd.params[1]]
-    # elif each.tokenType == NwtEval and each.value.startswith("if"):
-    #   let checkVar = extractTemplateName(each.value)
+    
+    elif each.tokenType == NwtEval and each.value.startswith("if"):
+      ## {% if baa %} uggu {% endif %}
+      #   let checkVar = extractTemplateName(each.value)
+      # echo 
+      discard
 
     elif each.tokenType == NwtEval and each.value.startswith("import"):
       let cmd = newChatCommand(each.value)
       let importTemplateName = cmd.params[0]
-
       if importTemplateName == templateName:
         raise newException(ValueError, "template $1 could not import itself" % templateName)
-
       # echo "@@@@---> importing template: ", importTemplateName
-
       for t in nwt.evalTemplate(importTemplateName, params):
-        # echo t
         importTemplateTokens.add t
       continue
-    else:
+    else: # starwith checks passed
       tokens.add each
 
   if importTemplateTokens.len > 0:
@@ -261,29 +257,21 @@ proc toStr*(token: Token, params: JsonNode = newJObject()): string =
     if token.value.startswith("self."):
       # echo "NODE STARTS WITH self. :: ", token.value
       var cmd = newChatCommand(token.value,false, @['.'])
+      let templateName = cmd.params[1]
       bufval.setLen(0)
-      # echo blockTable
-      # echo "//// " ,cmd
-      # echo "//// " ,cmd.params[1]
-      # echo "BLOCKTABLE: ", blockTable[cmd.params[1]]
-      for token in blockTable[cmd.params[1]]:
+      if blockTable.hasKey(templateName): 
+        for token in blockTable[templateName]:
           bufval.add token.toStr()
       return bufval
-
 
     var node = params.getOrDefault(token.value)
 
     if not node.isNil:
-      # echo "@@@@@@ ", node
-      
-      
-
       case node.kind
       of JString:
         bufval = node.getStr()
 
           # for 
-
       of JInt:  
         bufval = $(node.getNum())
       of JFloat:
