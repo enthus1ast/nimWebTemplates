@@ -3,7 +3,7 @@ import ../../nwt
 import strutils
 import tables
 import os
-
+import asyncfile
 
 const PUBLIC_DIR = "./public/"
 var t = newNwt("templates/*.html")
@@ -29,7 +29,10 @@ proc cb(req: Request) {.async.} =
     if t.templates.contains(res): # when we have a template with this name, serve it
       await req.respond(Http200, t.renderTemplate(res))
     elif fileExists(PUBLIC_DIR / res): # when there is a static file with this name, serve it
-      await req.respond(Http200, open(PUBLIC_DIR / res,).readAll())
+      let file = openAsync(PUBLIC_DIR / res , fmRead)
+      # let data 
+      await req.respond(Http200, await file.readAll())
+      file.close()
     else: # unkown to us
       await req.respond(Http404, "404 not found")
 

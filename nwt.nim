@@ -40,8 +40,8 @@ import parseutils
 import sequtils
 import os
 import tables
-# import commandParser
-import """D:\nimCommandParser\commandParser.nim"""
+import commandParser
+# import """D:\nimCommandParser\commandParser.nim"""
 import nwtTokenizer
 import json
 import queues
@@ -122,7 +122,7 @@ proc getBlocks*(tokens: seq[Token], starting="block", ending="endblock" ): Table
       stack.pushl( (cmd, i ))
     elif each.tokenType == NwtEval and each.value.strip().startswith(ending):
       if stack.len == 0:
-        echo stack
+        # echo stack
         raise newException(ValueError, "UNBALANCED BLOCKS too many closeing tags for: " & $each & " " & $tokens )
       var cmd: ChatCommand
       (cmd, actual.posStart) = stack.popl()
@@ -187,8 +187,10 @@ proc evalTemplate(nwt: Nwt, templateName: string, params: JsonNode = newJObject(
   for each in nwt.templates[templateName]:
     # echo each
     if each.tokenType == NwtEval and each.value.startswith("extends"):
-      if alreadyExtendet: echo "already extendet"; continue
-      echo "template has an extends"
+      if alreadyExtendet: 
+        # echo "already extendet"
+        continue
+      # echo "template has an extends"
       alreadyExtendet = true
       # baseTemplateTokens = nwt.templates[extractTemplateName(each.value)]
 
@@ -201,7 +203,7 @@ proc evalTemplate(nwt: Nwt, templateName: string, params: JsonNode = newJObject(
     elif each.tokenType == NwtEval and each.value.startswith("set"):
       let setCmd = newChatCommand(each.value)
       params[setCmd.params[0]] = %* setCmd.params[1] 
-      echo "params[$1] = $2" % [setCmd.params[0], setCmd.params[1]]
+      # echo "params[$1] = $2" % [setCmd.params[0], setCmd.params[1]]
     # elif each.tokenType == NwtEval and each.value.startswith("if"):
     #   let checkVar = extractTemplateName(each.value)
 
@@ -212,7 +214,7 @@ proc evalTemplate(nwt: Nwt, templateName: string, params: JsonNode = newJObject(
       if importTemplateName == templateName:
         raise newException(ValueError, "template $1 could not import itself" % templateName)
 
-      echo "@@@@---> importing template: ", importTemplateName
+      # echo "@@@@---> importing template: ", importTemplateName
 
       for t in nwt.evalTemplate(importTemplateName, params):
         # echo t
@@ -222,13 +224,13 @@ proc evalTemplate(nwt: Nwt, templateName: string, params: JsonNode = newJObject(
       tokens.add each
 
   if importTemplateTokens.len > 0:
-    echo "resolving import tokens:"
-    echo tokens
-    echo "####################################################"
-    echo importTemplateTokens
+    # echo "resolving import tokens:"
+    # echo tokens
+    # echo "####################################################"
+    # echo importTemplateTokens
     tokens = tokens.fillBlocks(importTemplateTokens, params)
-    echo "====================================================="
-    echo tokens
+    # echo "====================================================="
+    # echo tokens
     # quit()
 
   if baseTemplateTokens.len == 0:
@@ -253,17 +255,17 @@ proc toStr*(token: Token, params: JsonNode = newJObject()): string =
   of NwtComment:
     return ""
   of NwtVariable:
-    echo "token: ", token
+    # echo "token: ", token
         # TODO dirty hack ? 
 
     if token.value.startswith("self."):
-      echo "NODE STARTS WITH self. :: ", token.value
+      # echo "NODE STARTS WITH self. :: ", token.value
       var cmd = newChatCommand(token.value,false, @['.'])
       bufval.setLen(0)
       # echo blockTable
-      echo "//// " ,cmd
-      echo "//// " ,cmd.params[1]
-      echo "BLOCKTABLE: ", blockTable[cmd.params[1]]
+      # echo "//// " ,cmd
+      # echo "//// " ,cmd.params[1]
+      # echo "BLOCKTABLE: ", blockTable[cmd.params[1]]
       for token in blockTable[cmd.params[1]]:
           bufval.add token.toStr()
       return bufval
@@ -272,7 +274,7 @@ proc toStr*(token: Token, params: JsonNode = newJObject()): string =
     var node = params.getOrDefault(token.value)
 
     if not node.isNil:
-      echo "@@@@@@ ", node
+      # echo "@@@@@@ ", node
       
       
 
@@ -402,18 +404,18 @@ when isMainModule:
     # for each in getBlocks(toSeq(nwtTokenize(tst))).values:
     #   echo each
 
-    block:
-      var baseTmpl  = toSeq(nwtTokenize("""{%block 'first'%}{%endblock%}"""))
-      var childTmpl = toSeq(nwtTokenize("""{%block 'first'%}I AM THE CHILD{%endblock%}"""))
-      echo baseTmpl
-      for each in getBlocks(baseTmpl).values:
-        echo each
+    # block:
+    #   var baseTmpl  = toSeq(nwtTokenize("""{%block 'first'%}{%endblock%}"""))
+    #   var childTmpl = toSeq(nwtTokenize("""{%block 'first'%}I AM THE CHILD{%endblock%}"""))
+    #   echo baseTmpl
+    #   for each in getBlocks(baseTmpl).values:
+    #     echo each
 
-      echo childTmpl
-      for each in getBlocks(childTmpl).values:
-        echo each
+    #   echo childTmpl
+    #   for each in getBlocks(childTmpl).values:
+    #     echo each
 
-      echo baseTmpl.fillBlocks(childTmpl, newJObject())
+    #   echo baseTmpl.fillBlocks(childTmpl, newJObject())
 
 
     # addTemplate tests
@@ -422,7 +424,7 @@ when isMainModule:
       assert t.templates == initTable[system.string, seq[Token]]()
 
       t.addTemplate("foo.html","i am the {{faa}} template")
-      echo t.renderTemplate("foo.html",%*{"faa": "super"})
+      # echo t.renderTemplate("foo.html",%*{"faa": "super"})
       assert t.renderTemplate("foo.html", %*{"faa": "super"}) == "i am the super template"
 
       t.templates.add("base.html","{%block 'bar'%}{%endblock%}")
