@@ -44,17 +44,29 @@ block: ## Import
   assert tmpls.renderTemplate("base.html") == "one two threetralalala b1b2"  
 
 
+
   ## TODO BUG blocks from an import gets not filled
-  # tmpls.templates.add("imps.html","{%import imp1.html%}{%import imp2.html%}")
-  # tmpls.templates.add("base.html","{%import imps.html%}{{var}}{{var2}} {%block block1%}{%endblock%}{%block block2%}{%endblock%}")
-  # # echo "\n\n", tmpls.renderTemplate("base.html") ,"\n\n"
-  # assert tmpls.renderTemplate("base.html") == "one two threetralalala b1b2"  
+  tmpls.templates.add("imps.html","{%import imp1.html%}")
+  tmpls.templates.add("base.html","{%import imps.html%}{{var}} {%block block%}{%endblock%}")
+  echo "\n\n", tmpls.renderTemplate("base.html") ,"\n\n"
+  assert tmpls.renderTemplate("base.html") == "one two three b1"
+
+
+  ## TODO BUG blocks from an import gets not filled
+  tmpls.templates.add("imps.html","{%import imp1.html%}{%import imp2.html%}")
+  tmpls.templates.add("base.html","{%import imps.html%}{{var}}{{var2}} {%block block1%}{%endblock%}{%block block2%}{%endblock%}")
+  # echo "\n\n", tmpls.renderTemplate("base.html") ,"\n\n"
+  assert tmpls.renderTemplate("base.html") == "one two threetralalala b1b2"  
 
   tmpls.templates.add("layout.html","{%block layout%}{%block inside1%}{%endblock%}{%block inside2%}{%endblock%}{%endblock%}")
   tmpls.templates.add("base.html","{%extends layout.html%}{%block inside1%}a{%endblock%}{%block inside2%}b{%endblock%}") # here is the ab
   tmpls.templates.add("info.html","{%import base.html%}{%block layout%}{%endblock%}")
   assert tmpls.renderTemplate("info.html") == "ab"   
 
+
+block: #double extends are not supported
+  tmpls.templates.add("ext1.html", "{%block ext1%}e1{%endblock%}") 
+  tmpls.templates.add("ext2.html", "{%block ext1%}e2{%endblock%}") 
 
 block:
   tmpls.templates.add("imp1.html","{%set 'var' 'one two three'%}")

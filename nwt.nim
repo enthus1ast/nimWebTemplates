@@ -40,7 +40,8 @@ import parseutils
 import sequtils
 import os
 import tables
-import commandParser
+# import commandParser
+import """D:\nimCommandParser\commandParser.nim"""
 import nwtTokenizer
 import json
 import queues
@@ -176,15 +177,19 @@ proc fillBlocks*(baseTemplateTokens, tokens: seq[Token], params: JsonNode): seq[
 
 proc evalTemplate(nwt: Nwt, templateName: string, params: JsonNode = newJObject()): seq[Token] = 
   # discard
+  # echo ""
+
   result = @[]
   var baseTemplateTokens = newSeq[Token]()
   var importTemplateTokens = newSeq[Token]()
   var tokens = newSeq[Token]()
+  var alreadyExtendet = false
   for each in nwt.templates[templateName]:
     # echo each
     if each.tokenType == NwtEval and each.value.startswith("extends"):
-      if baseTemplateTokens.len != 0: echo "already extendet"; continue
+      if alreadyExtendet: echo "already extendet"; continue
       echo "template has an extends"
+      alreadyExtendet = true
       # baseTemplateTokens = nwt.templates[extractTemplateName(each.value)]
 
       ## ONLY ONE BASE TEMPLATE IS SUPPORTED!! so only ONE {%extends%} __PER FILE__!
@@ -210,9 +215,9 @@ proc evalTemplate(nwt: Nwt, templateName: string, params: JsonNode = newJObject(
       echo "@@@@---> importing template: ", importTemplateName
 
       for t in nwt.evalTemplate(importTemplateName, params):
-        echo t
+        # echo t
         importTemplateTokens.add t
-
+      continue
     else:
       tokens.add each
 
@@ -225,6 +230,7 @@ proc evalTemplate(nwt: Nwt, templateName: string, params: JsonNode = newJObject(
     echo "====================================================="
     echo tokens
     # quit()
+
   if baseTemplateTokens.len == 0:
     return tokens
   else:
@@ -239,6 +245,7 @@ proc toStr*(token: Token, params: JsonNode = newJObject()): string =
   # TODO should this be `$`?
 
   # template emptyValue():
+  var bufval = ""
 
   case token.tokenType
   of NwtString:
@@ -247,21 +254,31 @@ proc toStr*(token: Token, params: JsonNode = newJObject()): string =
     return ""
   of NwtVariable:
     echo "token: ", token
+        # TODO dirty hack ? 
+
+    if token.value.startswith("self."):
+      echo "NODE STARTS WITH self. :: ", token.value
+      var cmd = newChatCommand(token.value,false, @['.'])
+      bufval.setLen(0)
+      # echo blockTable
+      echo "//// " ,cmd
+      echo "//// " ,cmd.params[1]
+      echo "BLOCKTABLE: ", blockTable[cmd.params[1]]
+      for token in blockTable[cmd.params[1]]:
+          bufval.add token.toStr()
+      return bufval
+
+
     var node = params.getOrDefault(token.value)
-    var bufval = ""
+
     if not node.isNil:
       echo "@@@@@@ ", node
+      
+      
+
       case node.kind
       of JString:
         bufval = node.getStr()
-        # TODO dirty hack ? 
-        if bufval.startswith("self."):
-          echo "NODE STARTS WITH self. :: ", bufval
-          var cmd = newChatCommand(bufval)
-          bufval.setLen(0)
-          echo "BLOCKTABLE: ", blockTable[cmd.params[1]]
-          for token in blockTable[cmd.params[1]]:
-              bufval.add token.toStr()
 
           # for 
 
