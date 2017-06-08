@@ -75,6 +75,7 @@ type
     # templates*: StringTableRef ## we load all the templates we want to render to this strtab
     templates*: Table[string,seq[Token]] ## we parse templates on start
     templatesDir*: string
+    echoEmptyVars*: bool ## set this to true to let nwt print an empty variable like this '{{variable}}' or '{{self.variable}}'
 
   Block = tuple[name: string, cmd: ChatCommand, posStart: int, posEnd: int]
 
@@ -106,6 +107,7 @@ proc newNwt*(templatesDir: string = "./templates/*.html"): Nwt =
   result.templates = initTable[string,seq[Token]]()
   result.templatesDir = templatesDir
   result.loadTemplates(templatesDir)
+  result.echoEmptyVars = false 
 
 # proc newBlock()
 

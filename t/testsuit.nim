@@ -82,6 +82,24 @@ block: ## self.templatename tests
   assert tmpls.renderTemplate("run.html") == "b1b2b3b4"   
 
 
+block: ## empty variable tests
+  var tmpls = newNwt()
+  tmpls.templates.add("run.html", "{{nothere}}")
+  tmpls.templates.add("run2.html", "{{self.nothere}}")
+
+
+  ## TODO fix this :)
+  ## debug
+  tmpls.echoEmptyVars = true
+  assert tmpls.renderTemplate("run.html") == "{{nothere}}"
+  assert tmpls.renderTemplate("run2.html") == "{{self.nothere}}"
+
+  ## release
+  tmpls.echoEmptyVars = false
+  assert tmpls.renderTemplate("run.html") == ""
+  assert tmpls.renderTemplate("run2.html") == ""    
+
+
 # block: ## if tests
 #   var tmpls = newNwt()
 #   tmpls.templates.add("run.html", "{%if false%}1{%endif%}")
