@@ -45,6 +45,7 @@ import commandParser
 import nwtTokenizer
 import json
 import queues
+import cgi
 
 ########################################################
 ## For building a stack easily.....
@@ -177,7 +178,8 @@ proc fillBlocks*(baseTemplateTokens, tokens: seq[Token], params: JsonNode): seq[
       result.insert(blockTokens , inspos)
 
 
-proc evalTemplate(nwt: Nwt, templateName: string, params: JsonNode = newJObject()): seq[Token] = 
+# proc evalTemplate(nwt: Nwt, templateName: string, params: JsonNode = newJObject()): seq[Token] = 
+proc evalTemplate(nwt: Nwt, templateName: string, params: JsonNode): seq[Token] =   
   # discard
   # echo ""
 
@@ -239,7 +241,11 @@ proc evalTemplate(nwt: Nwt, templateName: string, params: JsonNode = newJObject(
   #   result.fillBlocks()
 
 
-proc toStr*(token: Token, params: JsonNode = newJObject()): string = 
+template decorateVariable(a: untyped): untyped =
+  "{{" & a & "}}"
+
+# proc toStr*(nwt: Nwt, token: Token, params: JsonNode = newJObject()): string = 
+proc toStr*(nwt: Nwt, token: Token, params: JsonNode): string = 
   # echo token , " " ,params
   ## transforms the token to its string representation 
   # TODO should this be `$`?
@@ -256,6 +262,23 @@ proc toStr*(token: Token, params: JsonNode = newJObject()): string =
     # echo "token: ", token
         # TODO dirty hack ? 
 
+
+    if token.value == "debug":
+      let dbg = """
+      <pre>
+          PARAMS:
+          $1
+
+          BLOCKTABLE:
+          $2
+      </pre>
+      """ % @[ 
+          params.pretty(), 
+          ($blockTable)
+          ]
+      echo dbg
+      return "<pre>" & dbg.xmlEncode & "</pre>"
+
     if token.value.startswith("self."):
       # echo "NODE STARTS WITH self. :: ", token.value
       var cmd = newChatCommand(token.value,false, @['.'])
@@ -263,7 +286,11 @@ proc toStr*(token: Token, params: JsonNode = newJObject()): string =
       bufval.setLen(0)
       if blockTable.hasKey(templateName): 
         for token in blockTable[templateName]:
-          bufval.add token.toStr()
+          bufval.add nwt.toStr(token, params)
+      elif nwt.echoEmptyVars:
+        bufval = decorateVariable(token.value)
+      else:
+        bufval = ""
       return bufval
 
     var node = params.getOrDefault(token.value)
@@ -281,8 +308,9 @@ proc toStr*(token: Token, params: JsonNode = newJObject()): string =
       else:
         bufval = ""
 
-    if bufval == "":
-      return "{{" & token.value & "}}" ## return the token when it could not be replaced
+    if (bufval == "") and (nwt.echoEmptyVars == true):
+      #return "{{" & token.value & "}}" ## return the token when it could not be replaced
+      return token.value.decorateVariable ## return the token when it could not be replaced
     else:
       return bufval
   else:
@@ -324,6 +352,7 @@ proc renderTemplate*(nwt: Nwt, templateName: string, params: JsonNode = newJObje
   
   result = ""
   var tokens: seq[Token] = @[]
+  blockTable.clear() ## ever new render ach scheiesse...
 
   if not nwt.templates.hasKey(templateName):
     raise newException(ValueError, "Template '$1' not found." % [templateName]) # UnknownTemplate
@@ -333,7 +362,7 @@ proc renderTemplate*(nwt: Nwt, templateName: string, params: JsonNode = newJObje
 
 
   for token in tokens:
-    result.add token.toStr(params)
+    result.add nwt.toStr(token, params)
 
 
 proc freeze*(nwt: Nwt, params: JsonNode = newJObject(), outputPath: string = "./freezed/", staticPath = "./public/") =

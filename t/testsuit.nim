@@ -4,18 +4,13 @@
 ## If not its a bug!
 ## 
 import ../nwt
+import json
 
 var tmpls = newNwt()
 
 block:
   tmpls.templates.add("a",""); assert tmpls.renderTemplate("a") == ""
   tmpls.templates.add("a","test"); assert tmpls.renderTemplate("a") == "test"
-
-  when not defined release:
-    tmpls.templates.add("a","{{test}}"); assert tmpls.renderTemplate("a") == "{{test}}" #
-  else:
-    tmpls.templates.add("a","{{test}}"); assert tmpls.renderTemplate("a") == "" #
-
 
 
 block:
@@ -82,14 +77,12 @@ block: ## self.templatename tests
   assert tmpls.renderTemplate("run.html") == "b1b2b3b4"   
 
 
+
 block: ## empty variable tests
   var tmpls = newNwt()
   tmpls.templates.add("run.html", "{{nothere}}")
   tmpls.templates.add("run2.html", "{{self.nothere}}")
 
-
-  ## TODO fix this :)
-  ## debug
   tmpls.echoEmptyVars = true
   assert tmpls.renderTemplate("run.html") == "{{nothere}}"
   assert tmpls.renderTemplate("run2.html") == "{{self.nothere}}"
@@ -98,6 +91,35 @@ block: ## empty variable tests
   tmpls.echoEmptyVars = false
   assert tmpls.renderTemplate("run.html") == ""
   assert tmpls.renderTemplate("run2.html") == ""    
+
+block: ## param tests
+
+  var tmpls = newNwt()
+  tmpls.templates.add("run.html", "{{var1}}{{var2}}{{var3}}")
+
+  tmpls.echoEmptyVars = false # this should be default 
+  assert tmpls.renderTemplate("run.html", %* {"var1": "1", "var2": 2}) == "12"
+  # assert tmpls.renderTemplate("run.html", %* {"var1": "1", "var2": 2}) == "12"
+
+  tmpls.echoEmptyVars = true # but in development we can enable the placeholder printing
+  assert tmpls.renderTemplate("run.html", %* {"var1": "1", "var2": 2}) == "12{{var3}}"
+  assert tmpls.renderTemplate("run.html", %* {"var1": "1", "var2": 2.0}) == "12.0{{var3}}"
+  assert tmpls.renderTemplate("run.html", %* {"var4": "1", "var2": 2}) == "{{var1}}2{{var3}}"
+
+
+  tmpls.templates.add("base.html", "{%block content%}{%endblock%}")
+  tmpls.templates.add("run2.html", "{%extends base.html%}{%block content%}{{var1}}{{var2}}{{var3}}{%endblock%}")
+
+  tmpls.echoEmptyVars = true
+  assert tmpls.renderTemplate("run2.html", %* {"var1": "1", "var2": 2}) == "12{{var3}}"
+
+
+  tmpls.echoEmptyVars = false
+  assert tmpls.renderTemplate("run2.html", %* {"var1": "1", "var2": 2}) == "12"
+
+  # tmpls.templates.add("run.html", "{{var1}}{{var2}}{{var3}}")
+
+
 
 
 # block: ## if tests
