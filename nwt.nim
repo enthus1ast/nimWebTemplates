@@ -72,7 +72,7 @@ proc pushl[T](s: var seq[T], itm: T)=
 
 
 type
-  Nwt = ref object of RootObj
+  Nwt* = ref object of RootObj
     # templates*: StringTableRef ## we load all the templates we want to render to this strtab
     templates*: Table[string,seq[Token]] ## we parse templates on start
     templatesDir*: string
@@ -148,13 +148,14 @@ proc fillBlocks*(baseTemplateTokens, tokens: seq[Token], params: JsonNode): seq[
   # @[(name: content2, posStart: 3, posEnd: 4), (name: peter, posStart: 6, posEnd: 8)]
   result = baseTemplateTokens
   var templateBlocks = getBlocks(tokens)
+
   # var ifBlocks = getBlocks
 
   # echo templateBlocks
   # quit()
   var baseTemplateBlocks = getBlocks(baseTemplateTokens)  
 
-  # TODO .....
+  ## To make {self.templateName} work
   for k,v in templateBlocks:
     blockTable[k] = tokens[v.posStart .. v.posEnd]
   # for k,v in baseTemplateBlocks:
@@ -338,7 +339,6 @@ proc evalScripts(nwt: Nwt, tokens: seq[Token] , params: JsonNode = newJObject())
 
   return tokens
 
-# proc renderTemplate*(nwt: Nwt, templateName: string, params: StringTableRef = newStringTable()): string =
 proc renderTemplate*(nwt: Nwt, templateName: string, params: JsonNode = newJObject()): string =  
   ## this returns the fully rendered template.
   ## all replacements are done.
@@ -470,3 +470,7 @@ when isMainModule:
     # block:
     #   var t = newNwt("./templates/*.html")  
     #   # t.freeze()
+
+    # block:
+      # var t = newNwt("./templates/*.html")
+      
