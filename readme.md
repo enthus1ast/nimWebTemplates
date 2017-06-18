@@ -106,6 +106,22 @@ about.html
 {# we not set any additional footer here, so we omit the block #}
 ```
 
+stats.html
+-----------
+
+```jinja
+{%extends "base.html"%}
+
+{%block content%}
+		<ul>
+			<li>{{foo}}</li>
+			<li>{{baa}}</li>
+		</ul>
+{%endblock%}
+
+{# we not set any additional footer here, so we omit the block #}
+```
+
 
 example.nim
 ------------
