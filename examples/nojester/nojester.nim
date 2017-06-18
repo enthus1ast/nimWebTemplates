@@ -17,8 +17,8 @@ proc cb(req: Request) {.async.} =
 
   case res 
   # some routes!
-  # be aware that freeze() only freezes the template and copies the public folder.
-  # we do not visit your custom rules for now!
+  # be aware that freeze() only freezes the template, wich are loaded by the constructor, and copies the public folder.
+  # we do not visit your custom routes for now!
   of "":
     await req.respond(Http200, t.renderTemplate("index.html") )  
   of "logout":
