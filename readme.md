@@ -6,7 +6,8 @@ rudimentary freeze support with `freeze()`
 
 have a look at the other demos!
 
-if you feeling fancy today have a special look at the `dbdriven` database example and my little flatfile database flatdb for nim-lang
+if you feeling fancy today have a special look at the `dbdriven` database example and 
+my little flatfile database [flatdb](https://github.com/enthus1ast/flatdb) for nim-lang
 
 
 usage
