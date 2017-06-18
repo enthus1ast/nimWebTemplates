@@ -30,14 +30,14 @@ To follow this example create this folder structure
 menu.html
 ----------
 
-```
+```jinja
 <a href="index.html">index</a> || <a href="about.html">about</a>
 ```
 
 base.html
 ----------
 
-```jinja2
+```jinja
 {%import menu.html%}
 <html>
 	<head>
@@ -71,7 +71,7 @@ base.html
 index.html
 -----------
 
-```jinja2
+```jinja
 {%extends "base.html"%}
 
 {%set title "Some index and more"%}
@@ -92,7 +92,7 @@ index.html
 about.html
 -----------
 
-```jinja2
+```jinja
 {%extends "base.html"%}
 {%set title "Some about me and stuff"%}
 
