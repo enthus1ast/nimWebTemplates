@@ -31,7 +31,7 @@ menu.html
 ----------
 
 ```jinja
-<a href="index.html">index</a> || <a href="about.html">about</a>
+{%block menu%}<a href="index.html">index</a> || <a href="about.html">about</a> || <a href="stats.html">stats</a>{%endblock%}
 ```
 
 base.html
