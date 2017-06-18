@@ -47,7 +47,10 @@ base.html
 	<body>
 		<div>
 			{{self.menu}} 
+
 		</div>
+
+		<h1>{{title}}</h1>
 
 		<div>
 			{%block "content"%}
@@ -56,7 +59,8 @@ base.html
 		</div>
 
 		<div>
-			Some footer infos we always wanna see!
+			<hr> 
+			Made with nim<br>
 			{{self.footer}}
 		</div>
 	</body>
@@ -81,7 +85,6 @@ index.html
 {%block footer%}
 	Some footer infos we only want to see on the index
 {%endblock%}
-
 ```
 
 
@@ -94,13 +97,13 @@ about.html
 {%set title "Some about me and stuff"%}
 
 {%block content%}
-	Lorem ipsum dolor sit amet, consectetur adipisicing elit. 
-	Ab, sint repellendus iure similique ipsa unde eos est nam numquam, laborum, sit ipsum voluptates modi impedit doloremque. 
-	Fugiat, obcaecati delectus accusantium.
+		<ul>
+			<li>foo</li>
+			<li>baaa</li>
+		</ul>
 {%endblock%}
 
 {# we not set any additional footer here, so we omit the block #}
-
 ```
 
 
@@ -119,12 +122,12 @@ proc cb(req: Request) {.async.} =
   let res = req.url.path #.strip(leading=true, trailing=false, {'/'})
 
   case res 
-  of "index.html":
+  of "/", "/index.html":
     await req.respond(Http200, templates.renderTemplate("index.html") )  
-  of "about.html":
+  of "/about.html":
     await req.respond(Http200, templates.renderTemplate("about.html"))
   else:
     await req.respond(Http404, "not found")
 
-waitFor server.serve(Port(8080), cb)    
+waitFor server.serve(Port(8080), cb) 
 ```
