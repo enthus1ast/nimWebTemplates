@@ -23,6 +23,7 @@ To follow this example create this folder structure
 ./templates/base.html
 ./templates/index.html
 ./templates/about.html
+./templates/stats.html
 ```
 
 

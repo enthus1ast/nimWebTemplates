@@ -14,7 +14,8 @@ proc cb(req: Request) {.async.} =
   of "/about.html":
     await req.respond(Http200, templates.renderTemplate("about.html"))
   of "/stats.html":
-    await req.respond(Http200, templates.renderTemplate("stats.html", %* {"title": "some variables from nim", "foo": "Foo!", "baa": "Baa!"}))  
+    var context = %* {"title": "some variables from nim", "foo": "Foo!", "baa": "Baa!"}
+    await req.respond(Http200, templates.renderTemplate("stats.html", context))  
   else:
     await req.respond(Http404, "not found")
 
