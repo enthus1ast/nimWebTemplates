@@ -1,0 +1,14 @@
+{# filters could be self defined, somewhere in the nim code #}
+
+{# FOO #}
+{{ "foo" | toUpper }} 
+
+{# f #}
+{{ "FOO" | toLower | trim(1) }}
+
+{# f #}
+{{ "FOO"[0] | toLower }}
+
+{# 1 #}
+{{ "FOO"[0] | len }}
+

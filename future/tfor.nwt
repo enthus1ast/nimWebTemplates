@@ -1,0 +1,20 @@
+{# users is a list of objects #}
+{% for user in users %}
+  <li><a href="{{ user.url }}">{{ user.username }}</a></li>
+{% endfor %}
+
+{% for email in userOne.emails %}
+  {{email.subject}}
+  {{email.body}}
+{% endfor %}
+
+{% for i in [1,2,3,4] %}
+  {{ i }}
+{% endfor %}
+
+{# same for tuples? #}
+{% for i in (1,2,3,4) %}
+  {{ i }}
+{% endfor %}
+
+

@@ -1,0 +1,18 @@
+{% if true %}
+  Some text
+{% endif %}
+
+{% if users %}
+  Users contains list entries
+{% endif %}
+
+{% if 1 %}
+  One is true
+{% endif %}
+
+{% if userOne.emails %}
+  userOne has a filled emails list
+{% endif %}
+
+
+
