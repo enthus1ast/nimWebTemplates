@@ -15,10 +15,11 @@ block:
 
 block:
   tmpls.templates.add("base.html","{%block 'bar'%}{%endblock%}")
-  tmpls.templates.add("extends.html","{%extends base.html%}{%block 'bar'%}Nim likes you{%endblock%}")
-  assert tmpls.renderTemplate("extends.html") == "Nim likes you"      
+  tmpls.templates.add("extends.html","{%extends base.html%}{%block 'bar'%}Nim likes you!!{%endblock%}")
+  echo tmpls.templates
+  assert tmpls.renderTemplate("extends.html") == "Nim likes you!!"      
 
-
+quit()
 block: ## Import 
   tmpls.templates.add("imp1.html","{%set 'var' 'one two three'%}{%block block1%}b1{%endblock%}")
   tmpls.templates.add("imp2.html","{%set 'var2' 'tralalala'%}{%block block2%}b2{%endblock%}")

@@ -74,7 +74,7 @@ type
     templates*: NwtTemplates ## we parse templates on start
     templatesDir*: string
     echoEmptyVars*: bool ## set this to true to let nwt print an empty variable like this '{{variable}}' or '{{self.variable}}'
-
+    blockTable: Table[string, seq[Token]]
   Block = tuple[name: string, cmd: ChatCommand, posStart: int, posEnd: int]
   Blocks = Table[BlockIdent, Block]
 
@@ -119,6 +119,7 @@ proc newNwt*(templatesDir: string = "./templates/*.html"): Nwt =
   result.templatesDir = templatesDir
   result.loadTemplates(templatesDir)
   result.echoEmptyVars = false 
+  result.blockTable = initTable[string, NwtTemplate]()
 
 proc getBlocks*(nwtTemplate: NwtTemplate, starting="block", ending="endblock" ): Blocks = # TODO private
   # returns all {%block 'foo'%} statements as a Table of Block
@@ -143,9 +144,8 @@ proc getBlocks*(nwtTemplate: NwtTemplate, starting="block", ending="endblock" ):
   if stack.len > 0:
     raise newException(ValueError, "UNBALANCED BLOCKS to many opening tags for: " & starting & "\nstack:\n" & $stack )
 
-var blockTable: Table[string, seq[Token]] = initTable[string, seq[Token]]() ## TODO unglobal this!
 
-proc fillBlocks*(baseTemplateTokens, nwtTemplate: NwtTemplate, params: JsonNode): NwtTemplate =  # TODO private
+proc fillBlocks*(nwt: Nwt, baseTemplateTokens, nwtTemplate: NwtTemplate, params: JsonNode): NwtTemplate =  # TODO private
   ## This fills all the base template blocks with
   ## blocks from extending template
   # @[(name: content2, posStart: 2, posEnd: 4), (name: peter, posStart: 6, posEnd: 8)]
@@ -156,7 +156,7 @@ proc fillBlocks*(baseTemplateTokens, nwtTemplate: NwtTemplate, params: JsonNode)
 
   ## To make {self.templateName} work
   for k,v in templateBlocks:
-    blockTable[k] = nwtTemplate[v.posStart .. v.posEnd]
+    nwt.blockTable[k] = nwtTemplate[v.posStart .. v.posEnd]
 
   for baseBlock in baseTemplateBlocks.values:
 
@@ -165,7 +165,7 @@ proc fillBlocks*(baseTemplateTokens, nwtTemplate: NwtTemplate, params: JsonNode)
       var endp = templateBlocks[baseBlock.name].posEnd
       var blockTokens = nwtTemplate[startp .. endp]
 
-      blockTable[baseBlock.name] = blockTokens
+      nwt.blockTable[baseBlock.name] = blockTokens
 
       ## The main block replacement
       # we only do anything if we have that block in the extending template
@@ -219,7 +219,7 @@ proc evalTemplate(nwt: Nwt, templateName: TemplateIdent, params: JsonNode): NwtT
     # echo tokens
     # echo "####################################################"
     # echo importTemplateTokens
-    tokens = tokens.fillBlocks(importTemplateTokens, params)
+    tokens = nwt.fillBlocks(tokens, importTemplateTokens, params)
     # echo "====================================================="
     # echo tokens
     # quit()
@@ -227,7 +227,7 @@ proc evalTemplate(nwt: Nwt, templateName: TemplateIdent, params: JsonNode): NwtT
   if baseTemplateTokens.len == 0:
     return tokens
   else:
-    return baseTemplateTokens.fillBlocks(tokens, params)
+    return nwt.fillBlocks(baseTemplateTokens, tokens, params)
 
 template decorateVariable(a: untyped): untyped =
   "{{" & a & "}}"
@@ -254,7 +254,7 @@ proc toStr*(nwt: Nwt, token: Token, ctx: JsonNode): string =
       </pre>
       """ % @[ 
           ctx.pretty(), 
-          ($blockTable)
+          ($nwt.blockTable)
           ]
       echo dbg
       return "<pre>" & dbg.xmlEncode & "</pre>"
@@ -263,8 +263,8 @@ proc toStr*(nwt: Nwt, token: Token, ctx: JsonNode): string =
       var cmd = newChatCommand(token.value,false, @['.'])
       let templateName = cmd.params[1]
       bufval.setLen(0)
-      if blockTable.hasKey(templateName): 
-        for token in blockTable[templateName]:
+      if nwt.blockTable.hasKey(templateName): 
+        for token in nwt.blockTable[templateName]:
           bufval.add nwt.toStr(token, ctx)
       elif nwt.echoEmptyVars:
         bufval = decorateVariable(token.value)
@@ -325,7 +325,7 @@ proc renderTemplate*(nwt: Nwt, templateName: TemplateIdent, params: JsonNode = n
     nwt.loadTemplates(nwt.templatesDir)
   result = ""
   var tokens = newNwtTemplate()
-  blockTable.clear() ## ever new render ach scheiesse...
+  nwt.blockTable.clear() ## ever new render ach scheiesse...
   if not nwt.templates.hasKey(templateName):
     raise newException(ValueError, "Template '$1' not found." % [templateName]) # UnknownTemplate
   tokens = nwt.evalTemplate(templateName, params)
@@ -386,6 +386,3 @@ when isMainModule:
       # echo t.renderTemplate("foo.html",%*{"faa": "super"})
       assert t.renderTemplate("foo.html", %*{"faa": "super"}) == "i am the super template"
 
-      t.templates.add("base.html","{%block 'bar'%}{%endblock%}")
-      t.templates.add("extends.html","{%extends base.html%}{%block 'bar'%}Nim likes you{%endblock%}")
-      assert t.renderTemplate("extends.html") == "Nim likes you"
