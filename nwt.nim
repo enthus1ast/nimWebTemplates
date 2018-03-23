@@ -28,12 +28,6 @@
 ##     resp t.renderTemplate("ass.html", newStringTable({"content": $epochTime()}))
 ## runForever()
 
-
-# {% set activeHome = 'active' %} Setzt variable
-
-
-
-
 import strtabs
 import strutils
 import parseutils
@@ -41,7 +35,6 @@ import sequtils
 import os
 import tables
 import commandParser
-# import """D:\nimCommandParser\commandParser.nim"""
 import nwtTokenizer
 import json
 import queues
@@ -104,13 +97,10 @@ proc newNwt*(templatesDir: string = "./templates/*.html"): Nwt =
   ## if templatesDir == nil we do not load any templates
   ##  we can add them later by `addTemplate("{%foo%}{%baa%}")`
   result = Nwt()
-  # result.templates = newStringTable()
   result.templates = initTable[string,seq[Token]]()
   result.templatesDir = templatesDir
   result.loadTemplates(templatesDir)
   result.echoEmptyVars = false 
-
-# proc newBlock()
 
 proc getBlocks*(tokens: seq[Token], starting="block", ending="endblock" ): Table[string, Block] = # TODO private
   # returns all {%block 'foo'%} statements as a Table of Block
@@ -121,24 +111,20 @@ proc getBlocks*(tokens: seq[Token], starting="block", ending="endblock" ): Table
   for i, each in tokens:
     if each.tokenType == NwtEval and each.value.strip().startswith(starting): # block
       var cmd = newChatCommand(each.value)
-      # stack.pushl( (each.value.extractTemplateName(), i ))
       stack.pushl( (cmd, i ))
     elif each.tokenType == NwtEval and each.value.strip().startswith(ending):
       if stack.len == 0:
-        # echo stack
         raise newException(ValueError, "UNBALANCED BLOCKS too many closeing tags for: " & $each & " " & $tokens )
       var cmd: ChatCommand
       (cmd, actual.posStart) = stack.popl()
       actual.name = cmd.params[0]
       actual.cmd = cmd
       actual.posEnd = i
-      # result[actual.name] = actual
       result.add(actual.name, actual)
       actual = ("", ChatCommand() ,0,0)
   if stack.len > 0:
     raise newException(ValueError, "UNBALANCED BLOCKS to many opening tags for: " & starting & "\nstack:\n" & $stack )
 
-# var blockTable: Table[string, Block] = initTable[string, Block]()
 var blockTable: Table[string, seq[Token]] = initTable[string, seq[Token]]()
 
 proc fillBlocks*(baseTemplateTokens, tokens: seq[Token], params: JsonNode): seq[Token] =  # TODO private
@@ -148,21 +134,13 @@ proc fillBlocks*(baseTemplateTokens, tokens: seq[Token], params: JsonNode): seq[
   # @[(name: content2, posStart: 3, posEnd: 4), (name: peter, posStart: 6, posEnd: 8)]
   result = baseTemplateTokens
   var templateBlocks = getBlocks(tokens)
-
-  # var ifBlocks = getBlocks
-
-  # echo templateBlocks
-  # quit()
   var baseTemplateBlocks = getBlocks(baseTemplateTokens)  
 
   ## To make {self.templateName} work
   for k,v in templateBlocks:
     blockTable[k] = tokens[v.posStart .. v.posEnd]
-  # for k,v in baseTemplateBlocks:
-  #   blockTable[k] = v    
 
   for baseBlock in baseTemplateBlocks.values:
-
 
     if templateBlocks.contains(baseBlock.name): 
       var startp = templateBlocks[baseBlock.name].posStart
@@ -171,19 +149,13 @@ proc fillBlocks*(baseTemplateTokens, tokens: seq[Token], params: JsonNode): seq[
 
       blockTable[baseBlock.name] = blockTokens
 
-
       ## The main block replacement
       # we only do anything if we have that block in the extending template
       var inspos = baseTemplateBlocks[baseBlock.name].posStart
       result.delete(baseTemplateBlocks[baseBlock.name].posStart, baseTemplateBlocks[baseBlock.name].posEnd)
       result.insert(blockTokens , inspos)
 
-
-# proc evalTemplate(nwt: Nwt, templateName: string, params: JsonNode = newJObject()): seq[Token] = 
 proc evalTemplate(nwt: Nwt, templateName: string, params: JsonNode): seq[Token] =   
-  # discard
-  # echo ""
-
   result = @[]
   var baseTemplateTokens = newSeq[Token]()
   var importTemplateTokens = newSeq[Token]()
@@ -191,7 +163,6 @@ proc evalTemplate(nwt: Nwt, templateName: string, params: JsonNode): seq[Token] 
   var alreadyExtendet = false
 
   for idx, each in nwt.templates[templateName]:
-    # echo each
     if each.tokenType == NwtEval and each.value.startswith("extends"):
       if alreadyExtendet: 
         continue
@@ -207,9 +178,6 @@ proc evalTemplate(nwt: Nwt, templateName: string, params: JsonNode): seq[Token] 
       # echo "params[$1] = $2" % [setCmd.params[0], setCmd.params[1]]
     
     elif each.tokenType == NwtEval and each.value.startswith("if"):
-      ## {% if baa %} uggu {% endif %}
-      #   let checkVar = extractTemplateName(each.value)
-      # echo 
       discard
 
     elif each.tokenType == NwtEval and each.value.startswith("import"):
@@ -238,14 +206,11 @@ proc evalTemplate(nwt: Nwt, templateName: string, params: JsonNode): seq[Token] 
     return tokens
   else:
     return baseTemplateTokens.fillBlocks(tokens, params)
-  # for each in tokens:
-  #   result.fillBlocks()
 
 
 template decorateVariable(a: untyped): untyped =
   "{{" & a & "}}"
 
-# proc toStr*(nwt: Nwt, token: Token, params: JsonNode = newJObject()): string = 
 proc toStr*(nwt: Nwt, token: Token, params: JsonNode): string = 
   # echo token , " " ,params
   ## transforms the token to its string representation 
@@ -262,8 +227,6 @@ proc toStr*(nwt: Nwt, token: Token, params: JsonNode): string =
   of NwtVariable:
     # echo "token: ", token
         # TODO dirty hack ? 
-
-
     if token.value == "debug":
       let dbg = """
       <pre>
@@ -300,8 +263,6 @@ proc toStr*(nwt: Nwt, token: Token, params: JsonNode): string =
       case node.kind
       of JString:
         bufval = node.getStr()
-
-          # for 
       of JInt:  
         bufval = $(node.getNum())
       of JFloat:
@@ -310,7 +271,6 @@ proc toStr*(nwt: Nwt, token: Token, params: JsonNode): string =
         bufval = ""
 
     if (bufval == "") and (nwt.echoEmptyVars == true):
-      #return "{{" & token.value & "}}" ## return the token when it could not be replaced
       return token.value.decorateVariable ## return the token when it could not be replaced
     else:
       return bufval
@@ -353,27 +313,19 @@ proc renderTemplate*(nwt: Nwt, templateName: string, params: JsonNode = newJObje
   result = ""
   var tokens: seq[Token] = @[]
   blockTable.clear() ## ever new render ach scheiesse...
-
   if not nwt.templates.hasKey(templateName):
     raise newException(ValueError, "Template '$1' not found." % [templateName]) # UnknownTemplate
-  
   tokens = nwt.evalTemplate(templateName, params)
   tokens = nwt.evalScripts(tokens, params) # expands `for` `if` etc
-
-
   for token in tokens:
     result.add nwt.toStr(token, params)
-
 
 proc freeze*(nwt: Nwt, params: JsonNode = newJObject(), outputPath: string = "./freezed/", staticPath = "./public/") =
   ## generates the html for each template.
   ## writes to the output path
-
   if not dirExists(outputPath): createDir(outputPath)
-
   if staticPath.len != 0 and dirExists(staticPath):
     copyDir( staticPath.strip(false, true,  {'/'}) , outputPath)
-
   for name, tmpl in nwt.templates:
     let freezedFilePath = outputPath / name 
     echo "Freezing: ", name, " to: ", freezedFilePath
@@ -384,9 +336,6 @@ proc freeze*(nwt: Nwt, params: JsonNode = newJObject(), outputPath: string = "./
 when isMainModule:
   # var nwt = newNwt()
   # echo "Loaded $1 templates." % [$nwt.templates.len]
-
-
-
   block:
     let tst = """<html>
         <head>
@@ -402,9 +351,6 @@ when isMainModule:
           </div>
         </body>
       </html>""" 
-    # for each in nwtTokenize(tst):
-    #   echo each
-
   block:
     var tst = """{%extends "base.html"%}
     {%block "klausi"%}
@@ -417,27 +363,6 @@ when isMainModule:
     ass petr
     {%endblock%}"""
 
-    # for i, each in toSeq(nwtTokenize(tst)):
-    #   echo i, ":\t", each.tokenType, "-> " ,each.value.strip()
-
-    # for each in getBlocks(toSeq(nwtTokenize(tst))).values:
-    #   echo each
-
-    # block:
-    #   var baseTmpl  = toSeq(nwtTokenize("""{%block 'first'%}{%endblock%}"""))
-    #   var childTmpl = toSeq(nwtTokenize("""{%block 'first'%}I AM THE CHILD{%endblock%}"""))
-    #   echo baseTmpl
-    #   for each in getBlocks(baseTmpl).values:
-    #     echo each
-
-    #   echo childTmpl
-    #   for each in getBlocks(childTmpl).values:
-    #     echo each
-
-    #   echo baseTmpl.fillBlocks(childTmpl, newJObject())
-
-
-    # addTemplate tests
     block:
       var t = newNwt(nil)
       assert t.templates == initTable[system.string, seq[Token]]()
@@ -449,28 +374,3 @@ when isMainModule:
       t.templates.add("base.html","{%block 'bar'%}{%endblock%}")
       t.templates.add("extends.html","{%extends base.html%}{%block 'bar'%}Nim likes you{%endblock%}")
       assert t.renderTemplate("extends.html") == "Nim likes you"
-
-
-    # test block in block
-    block:
-      discard # TODO
-      # t.templates.add("base.html","{%block 'bar'%}{%endblock%}")
-      # t.templates.add("extends.html","{%extends base.html%}{%block 'bar'%}Nim likes you{%endblock%}")
-      # assert t.renderTemplate("extends.html") == "Nim likes you"      
-      # addTemplate
-
-
-    # block:
-    #   var t = newNwt("./templates/ji.html")
-    #   for each in t.templates["ji.html"]:
-    #     echo each
-
-    #   # for each in nwtTokenize(t.templates["ji.html"]):
-
-    # block:
-    #   var t = newNwt("./templates/*.html")  
-    #   # t.freeze()
-
-    # block:
-      # var t = newNwt("./templates/*.html")
-      
