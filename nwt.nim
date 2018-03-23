@@ -78,18 +78,22 @@ type
   Block = tuple[name: string, cmd: ChatCommand, posStart: int, posEnd: int]
   Blocks = Table[BlockIdent, Block]
 
-proc newTemplate(): NwtTemplate =
+proc newNwtTemplate(): NwtTemplate =
   result = @[]
 
-proc newTemplates(): NwtTemplates = 
+proc newNwtTemplate(templateString: string): NwtTemplate =
+  ## parses the templateString and creates a NwtTemplate from it.
+  result = toSeq(nwtTokenize templateString)
+
+proc newNwtTemplates(): NwtTemplates = 
   result = initTable[TemplateIdent,seq[Token]]()
 
 proc newBlocks(): Blocks = 
   result = initTable[BlockIdent, Block]()
 
-proc add*(tokens: var NwtTemplates, templateName, templateStr: string) =
+proc add*(nwtTemplates: var NwtTemplates, templateName: TemplateIdent, templateStr: string) =
   ## parses and adds/updates a template
-  tokens[templateName] = toSeq(nwtTokenize templateStr)
+  nwtTemplates[templateName] = newNwtTemplate(templateStr)
 
 proc addTemplate*(nwt: Nwt, templateName: TemplateIdent , templateStr: string) = 
   ## parses and adds/updates a template, given by a string
@@ -106,13 +110,12 @@ proc loadTemplates(nwt: Nwt, templatesDir: string) =
       # echo "Load: $1 as $2", % [filename, templateName]
       nwt.templates[templateName] = toSeq(nwtTokenize readFile(filename))
 
-
 proc newNwt*(templatesDir: string = "./templates/*.html"): Nwt =
   ## this loads all templates from the template into memory
   ## if templatesDir == nil we do not load any templates
   ##  we can add them later by `addTemplate("{%foo%}{%baa%}")`
   result = Nwt()
-  result.templates = newTemplates()
+  result.templates = newNwtTemplates()
   result.templatesDir = templatesDir
   result.loadTemplates(templatesDir)
   result.echoEmptyVars = false 
@@ -172,9 +175,9 @@ proc fillBlocks*(baseTemplateTokens, nwtTemplate: NwtTemplate, params: JsonNode)
 
 proc evalTemplate(nwt: Nwt, templateName: TemplateIdent, params: JsonNode): NwtTemplate =   
   result = @[]
-  var baseTemplateTokens = newTemplate()
-  var importTemplateTokens = newTemplate()
-  var tokens = newTemplate()
+  var baseTemplateTokens = newNwtTemplate()
+  var importTemplateTokens = newNwtTemplate()
+  var tokens = newNwtTemplate()
   var alreadyExtendet = false
 
   for idx, each in nwt.templates[templateName]:
@@ -198,7 +201,6 @@ proc evalTemplate(nwt: Nwt, templateName: TemplateIdent, params: JsonNode): NwtT
     elif each.tokenType == NwtEval and each.value.startswith("for"):
       # for elem in 
       discard
-
 
     elif each.tokenType == NwtEval and each.value.startswith("import"):
       let cmd = newChatCommand(each.value)
@@ -227,12 +229,10 @@ proc evalTemplate(nwt: Nwt, templateName: TemplateIdent, params: JsonNode): NwtT
   else:
     return baseTemplateTokens.fillBlocks(tokens, params)
 
-
 template decorateVariable(a: untyped): untyped =
   "{{" & a & "}}"
 
 proc toStr*(nwt: Nwt, token: Token, params: JsonNode): string = 
-  # echo token , " " ,params
   ## transforms the token to its string representation 
   # TODO should this be `$`?
 
@@ -332,7 +332,7 @@ proc renderTemplate*(nwt: Nwt, templateName: TemplateIdent, params: JsonNode = n
     nwt.loadTemplates(nwt.templatesDir)
   
   result = ""
-  var tokens = newTemplate()
+  var tokens = newNwtTemplate()
   blockTable.clear() ## ever new render ach scheiesse...
   if not nwt.templates.hasKey(templateName):
     raise newException(ValueError, "Template '$1' not found." % [templateName]) # UnknownTemplate
@@ -388,7 +388,7 @@ when isMainModule:
     block:
       var t = newNwt(nil)
       # assert t.templates == initTable[system.string, seq[Token]]()
-      assert t.templates == newTemplates()
+      assert t.templates == newNwtTemplates()
 
       t.addTemplate("foo.html","i am the {{faa}} template")
       # echo t.renderTemplate("foo.html",%*{"faa": "super"})
