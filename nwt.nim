@@ -65,15 +65,27 @@ proc pushl[T](s: var seq[T], itm: T)=
 
 
 type
+  TemplateIdent = string
+  BlockIdent = string
+  NwtTemplate = seq[Token]
+  NwtTemplates = Table[TemplateIdent, NwtTemplate]
   Nwt* = ref object of RootObj
     # templates*: StringTableRef ## we load all the templates we want to render to this strtab
-    templates*: Table[string,seq[Token]] ## we parse templates on start
+    templates*: NwtTemplates ## we parse templates on start
     templatesDir*: string
     echoEmptyVars*: bool ## set this to true to let nwt print an empty variable like this '{{variable}}' or '{{self.variable}}'
 
   Block = tuple[name: string, cmd: ChatCommand, posStart: int, posEnd: int]
+  Blocks = Table[BlockIdent, Block]
 
-proc add*(tokens: var Table[string,seq[Token]], templateName, templateStr: string) =
+
+proc newTemplates(): NwtTemplates = 
+  result = initTable[TemplateIdent,seq[Token]]()
+
+proc newBlocks(): Blocks = 
+  result = initTable[BlockIdent, Block]()
+
+proc add*(tokens: var NwtTemplates, templateName, templateStr: string) =
   ## parses and adds/updates a template
   tokens[templateName] = toSeq(nwtTokenize templateStr)
 
@@ -92,29 +104,30 @@ proc loadTemplates(nwt: Nwt, templatesDir: string) =
       # echo "Load: $1 as $2", % [filename, templateName]
       nwt.templates[templateName] = toSeq(nwtTokenize readFile(filename))
 
+
 proc newNwt*(templatesDir: string = "./templates/*.html"): Nwt =
   ## this loads all templates from the template into memory
   ## if templatesDir == nil we do not load any templates
   ##  we can add them later by `addTemplate("{%foo%}{%baa%}")`
   result = Nwt()
-  result.templates = initTable[string,seq[Token]]()
+  result.templates = newTemplates()
   result.templatesDir = templatesDir
   result.loadTemplates(templatesDir)
   result.echoEmptyVars = false 
 
-proc getBlocks*(tokens: seq[Token], starting="block", ending="endblock" ): Table[string, Block] = # TODO private
+proc getBlocks*(nwtTemplate: NwtTemplate, starting="block", ending="endblock" ): Blocks = # TODO private
   # returns all {%block 'foo'%} statements as a Table of Block
-  result = initTable[string, Block]()
+  result = newBlocks()
   var stack = newSeq[(ChatCommand, int)]()
 
   var actual: Block = ("",ChatCommand(),0,0)
-  for i, each in tokens:
+  for i, each in nwtTemplate:
     if each.tokenType == NwtEval and each.value.strip().startswith(starting): # block
       var cmd = newChatCommand(each.value)
       stack.pushl( (cmd, i ))
     elif each.tokenType == NwtEval and each.value.strip().startswith(ending):
       if stack.len == 0:
-        raise newException(ValueError, "UNBALANCED BLOCKS too many closeing tags for: " & $each & " " & $tokens )
+        raise newException(ValueError, "UNBALANCED BLOCKS too many closeing tags for: " & $each & " " & $nwtTemplate )
       var cmd: ChatCommand
       (cmd, actual.posStart) = stack.popl()
       actual.name = cmd.params[0]
@@ -179,6 +192,11 @@ proc evalTemplate(nwt: Nwt, templateName: string, params: JsonNode): seq[Token] 
     
     elif each.tokenType == NwtEval and each.value.startswith("if"):
       discard
+
+    elif each.tokenType == NwtEval and each.value.startswith("for"):
+      # for elem in 
+      discard
+
 
     elif each.tokenType == NwtEval and each.value.startswith("import"):
       let cmd = newChatCommand(each.value)
@@ -296,8 +314,9 @@ proc evalScripts(nwt: Nwt, tokens: seq[Token] , params: JsonNode = newJObject())
 
   #     for idx, each in params[forBlock.cmd.params[2]]:
   #       echo forBlock.cmd.params[0], "->", each # , "-> ", each , "[" , idx , "]"
-
   return tokens
+
+# proc getCorrespondingElse(nwt: Nwt)
 
 proc renderTemplate*(nwt: Nwt, templateName: string, params: JsonNode = newJObject()): string =  
   ## this returns the fully rendered template.
@@ -316,6 +335,8 @@ proc renderTemplate*(nwt: Nwt, templateName: string, params: JsonNode = newJObje
   if not nwt.templates.hasKey(templateName):
     raise newException(ValueError, "Template '$1' not found." % [templateName]) # UnknownTemplate
   tokens = nwt.evalTemplate(templateName, params)
+  echo tokens
+  echo 1/0
   tokens = nwt.evalScripts(tokens, params) # expands `for` `if` etc
   for token in tokens:
     result.add nwt.toStr(token, params)
