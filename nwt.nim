@@ -149,7 +149,7 @@ proc fillBlocks*(nwt: Nwt, baseTemplateTokens, nwtTemplate: NwtTemplate, params:
   ## This fills all the base template blocks with
   ## blocks from extending template
   # @[(name: content2, posStart: 2, posEnd: 4), (name: peter, posStart: 6, posEnd: 8)]
-  # @[(name: content2, posStart: 3, posEnd: 4), (name: peter, posStart: 6, posEnd: 8)]
+  # @[(name: content2, posStart: P, posEnd: 4), (name: peter, posStart: 6, posEnd: 8)]
   result = baseTemplateTokens
   var templateBlocks = getBlocks(nwtTemplate)
   var baseTemplateBlocks = getBlocks(baseTemplateTokens)  
@@ -278,9 +278,9 @@ proc toStr*(nwt: Nwt, token: Token, ctx: JsonNode): string =
       of JString:
         bufval = node.getStr()
       of JInt:  
-        bufval = $(node.getNum())
+        bufval = $(node.getInt())
       of JFloat:
-        bufval = $(node.getFNum())
+        bufval = $(node.getFloat())
       else:
         bufval = ""
     if (bufval == "") and (nwt.echoEmptyVars == true):
@@ -350,39 +350,13 @@ proc freeze*(nwt: Nwt, params: JsonNode = newJObject(), outputPath: string = "./
 when isMainModule:
   # var nwt = newNwt()
   # echo "Loaded $1 templates." % [$nwt.templates.len]
+  import t/testsuit
   block:
-    let tst = """<html>
-        <head>
-          <title>engine</title>
-        </head>
-        <body>
-        <style>
-          {%block 'foo'%}{}{%endblock%}
-          {ugga}}
-        </style>
-          <h1>Welcome from baseasdfasdf</h1>
-          <div id="content">
-          </div>
-        </body>
-      </html>""" 
-  block:
-    var tst = """{%extends "base.html"%}
-    {%block "klausi"%}
-    ass : ) 
-    {%endblock%}
-    {%block "content2"%}
-    ass : ) 
-    {%endblock%}
-    {%block "peter"%}
-    ass petr
-    {%endblock%}"""
+    var t = newNwt(nil)
+    # assert t.templates == initTable[system.string, seq[Token]]()
+    assert t.templates == newNwtTemplates()
 
-    block:
-      var t = newNwt(nil)
-      # assert t.templates == initTable[system.string, seq[Token]]()
-      assert t.templates == newNwtTemplates()
-
-      t.addTemplate("foo.html","i am the {{faa}} template")
-      # echo t.renderTemplate("foo.html",%*{"faa": "super"})
-      assert t.renderTemplate("foo.html", %*{"faa": "super"}) == "i am the super template"
+    t.addTemplate("foo.html","i am the {{faa}} template")
+    # echo t.renderTemplate("foo.html",%*{"faa": "super"})
+    assert t.renderTemplate("foo.html", %*{"faa": "super"}) == "i am the super template"
 

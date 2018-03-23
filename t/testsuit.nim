@@ -122,6 +122,33 @@ block: ## param tests
 
 
 
+  # block:
+  #   let tst = """<html>
+  #       <head>
+  #         <title>engine</title>
+  #       </head>
+  #       <body>
+  #       <style>
+  #         {%block 'foo'%}{}{%endblock%}
+  #         {ugga}}
+  #       </style>
+  #         <h1>Welcome from baseasdfasdf</h1>
+  #         <div id="content">
+  #         </div>
+  #       </body>
+  #     </html>""" 
+  # block:
+  #   var tst = """{%extends "base.html"%}
+  #   {%block "klausi"%}
+  #   ass : ) 
+  #   {%endblock%}
+  #   {%block "content2"%}
+  #   ass : ) 
+  #   {%endblock%}
+  #   {%block "peter"%}
+  #   ass petr
+  #   {%endblock%}"""
+
 
 # block: ## if tests
 #   var tmpls = newNwt()
