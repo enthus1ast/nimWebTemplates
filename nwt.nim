@@ -27,29 +27,8 @@
 import strtabs, strutils, parseutils, sequtils, os, tables ,json ,queues ,cgi
 import commandParser
 import nwtTokenizer 
+import stack
 
-########################################################
-## For building a stack easily.....
-## Check if they exists in stdlib
-## 
-proc popr[T](s: var seq[T]): T =
-  ## removes and returns the rightest/last item
-  result = s[^1]
-  s.delete(s.len)
-
-proc popl[T](s: var seq[T]): T =
-  ## removes and return the leftest/first item
-  result = s[0]
-  s.delete(0)
-
-proc pushr[T](s: var seq[T], itm: T) =
-  ## adds a value to the back/right
-  s.add(itm)
-
-proc pushl[T](s: var seq[T], itm: T)=
-  ## adds a value to the front/left
-  s.insert(itm,0)
-########################################################
 type
   TemplateIdent = string
   BlockIdent = string
@@ -59,9 +38,11 @@ type
     templates*: NwtTemplates
     templatesDir*: string
     echoEmptyVars*: bool ## set this to true to let nwt print an empty variable like this '{{variable}}' or '{{self.variable}}'
-    blockTable: Table[string, seq[Token]]
   Block = tuple[name: string, cmd: ChatCommand, posStart: int, posEnd: int]
   Blocks = Table[BlockIdent, Block]
+  Context = ref object
+    variables: JsonNode
+    nwtTemplates: NwtTemplates
 
 proc newNwtTemplate(): NwtTemplate =
   result = @[]
@@ -75,6 +56,12 @@ proc newNwtTemplates(): NwtTemplates =
 
 proc newBlocks(): Blocks = 
   result = initTable[BlockIdent, Block]()
+
+proc newContext(variables = %* {}): Context =
+  result = Context()
+  result.variables = variables
+  # result.blocks = newBlocks()
+  result.nwtTemplates = newNwtTemplates()
 
 proc add*(nwtTemplates: var NwtTemplates, templateName: TemplateIdent, templateStr: string) =
   ## parses and adds/updates a template
@@ -104,7 +91,6 @@ proc newNwt*(templatesDir: string = "./templates/*.html"): Nwt =
   result.templatesDir = templatesDir
   result.loadTemplates(templatesDir)
   result.echoEmptyVars = false 
-  result.blockTable = initTable[string, NwtTemplate]()
 
 proc getBlocks*(nwtTemplate: NwtTemplate, starting="block", ending="endblock" ): Blocks = # TODO private
   # returns all {%block 'foo'%} statements as a Table of Block
@@ -127,9 +113,9 @@ proc getBlocks*(nwtTemplate: NwtTemplate, starting="block", ending="endblock" ):
       result.add(actual.name, actual)
       actual = ("", ChatCommand() ,0,0)
   if stack.len > 0:
-    raise newException(ValueError, "UNBALANCED BLOCKS to many opening tags for: " & starting & "\nstack:\n" & $stack )
+    raise newException(ValueError, "UNBALANCED BLOCKS too many opening tags for: " & starting & "\nstack:\n" & $stack )
 
-proc fillBlocks*(nwt: Nwt, baseTemplateTokens, nwtTemplate: NwtTemplate, params: JsonNode): NwtTemplate =  # TODO private
+proc fillBlocks*(nwt: Nwt, baseTemplateTokens, nwtTemplate: NwtTemplate, ctx: Context): NwtTemplate =  # TODO private
   ## This fills all the base template blocks with
   ## blocks from extending template
   # @[(name: content2, posStart: 2, posEnd: 4), (name: peter, posStart: 6, posEnd: 8)]
@@ -140,7 +126,7 @@ proc fillBlocks*(nwt: Nwt, baseTemplateTokens, nwtTemplate: NwtTemplate, params:
 
   ## To make {self.templateName} work
   for k,v in templateBlocks:
-    nwt.blockTable[k] = nwtTemplate[v.posStart .. v.posEnd]
+    ctx.nwtTemplates[k] = nwtTemplate[v.posStart .. v.posEnd]
 
   for baseBlock in baseTemplateBlocks.values:
 
@@ -149,7 +135,7 @@ proc fillBlocks*(nwt: Nwt, baseTemplateTokens, nwtTemplate: NwtTemplate, params:
       var endp = templateBlocks[baseBlock.name].posEnd
       var blockTokens = nwtTemplate[startp .. endp]
 
-      nwt.blockTable[baseBlock.name] = blockTokens
+      ctx.nwtTemplates[baseBlock.name] = blockTokens
 
       ## The main block replacement
       # we only do anything if we have that block in the extending template
@@ -157,7 +143,7 @@ proc fillBlocks*(nwt: Nwt, baseTemplateTokens, nwtTemplate: NwtTemplate, params:
       result.delete(baseTemplateBlocks[baseBlock.name].posStart, baseTemplateBlocks[baseBlock.name].posEnd)
       result.insert(blockTokens , inspos)
 
-proc evalTemplate(nwt: Nwt, templateName: TemplateIdent, ctx: JsonNode): NwtTemplate =   
+proc evalTemplate(nwt: Nwt, templateName: TemplateIdent, ctx: Context): NwtTemplate =   
   result = @[]
   var baseTemplateTokens = newNwtTemplate()
   var importTemplateTokens = newNwtTemplate()
@@ -176,7 +162,7 @@ proc evalTemplate(nwt: Nwt, templateName: TemplateIdent, ctx: JsonNode): NwtTemp
   
     elif each.tokenType == NwtEval and each.value.startswith("set"):
       let setCmd = newChatCommand(each.value)
-      ctx[setCmd.params[0]] = %* setCmd.params[1] 
+      ctx.variables[setCmd.params[0]] = %* setCmd.params[1] 
       # echo "params[$1] = $2" % [setCmd.params[0], setCmd.params[1]]
     
     elif each.tokenType == NwtEval and each.value.startswith("if"):
@@ -208,7 +194,7 @@ proc evalTemplate(nwt: Nwt, templateName: TemplateIdent, ctx: JsonNode): NwtTemp
 template decorateVariable(a: untyped): untyped =
   "{{" & a & "}}"
 
-proc toStr*(nwt: Nwt, token: Token, ctx: JsonNode): string = 
+proc toStr*(nwt: Nwt, token: Token, ctx: Context): string = 
   ## transforms the token to its string representation 
   # TODO should this be `$`?
   var bufval = ""
@@ -229,8 +215,8 @@ proc toStr*(nwt: Nwt, token: Token, ctx: JsonNode): string =
           $2
       </pre>
       """ % @[ 
-          ctx.pretty(), 
-          ($nwt.blockTable)
+          ctx.variables.pretty(), 
+          ($ctx.nwtTemplates)
           ]
       echo dbg
       return "<pre>" & dbg.xmlEncode & "</pre>"
@@ -239,15 +225,15 @@ proc toStr*(nwt: Nwt, token: Token, ctx: JsonNode): string =
       var cmd = newChatCommand(token.value,false, @['.'])
       let templateName = cmd.params[1]
       bufval.setLen(0)
-      if nwt.blockTable.hasKey(templateName): 
-        for token in nwt.blockTable[templateName]:
+      if ctx.nwtTemplates.hasKey(templateName): 
+        for token in ctx.nwtTemplates[templateName]:
           bufval.add nwt.toStr(token, ctx)
       elif nwt.echoEmptyVars:
         bufval = decorateVariable(token.value)
       else:
         bufval = ""
       return bufval
-    var node = ctx.getOrDefault(token.value)
+    var node = ctx.variables.getOrDefault(token.value)
     if not node.isNil:
       case node.kind
       of JString:
@@ -278,23 +264,24 @@ proc toStr*(nwt: Nwt, token: Token, ctx: JsonNode): string =
 #   #       echo forBlock.cmd.params[0], "->", each # , "-> ", each , "[" , idx , "]"
 #   return nwtTemplate
 
-proc renderTemplate*(nwt: Nwt, templateName: TemplateIdent, ctx: JsonNode = newJObject()): string =  
+proc renderTemplate*(nwt: Nwt, templateName: TemplateIdent, variables: JsonNode = newJObject()): string =  
   ## this returns the fully rendered template.
   ## all replacements are done.
   ## if the loaded template extends a base template, we parse this as well and fill all the blocks.
   ## ATM this is not recursively checking for extends on child templates! 
   ## So only one 'extends' level is supported.
+  var ctx = newContext(variables)
   when not defined release:
     echo "WARNING THIS IS AN DEBUG BUILD. NWT PARSES THE HTML ON EVERY GET; THIS IS SLOW"
     nwt.loadTemplates(nwt.templatesDir)
   result = ""
-  var tokens = newNwtTemplate()
-  nwt.blockTable.clear()
+  var nwtTemplate = newNwtTemplate()
+  # nwt.blockTable.clear()
   if not nwt.templates.hasKey(templateName):
     raise newException(ValueError, "Template '$1' not found." % [templateName]) # UnknownTemplate
-  tokens = nwt.evalTemplate(templateName, ctx)
+  nwtTemplate = nwt.evalTemplate(templateName, ctx)
   # tokens = nwt.evalScripts(tokens, params) # expands `for` `if` etc
-  for token in tokens:
+  for token in nwtTemplate:
     result.add nwt.toStr(token, ctx)
 
 proc freeze*(nwt: Nwt, params: JsonNode = newJObject(), outputPath: string = "./freezed/", staticPath = "./public/") =
