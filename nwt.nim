@@ -232,11 +232,9 @@ proc evalTemplate(nwt: Nwt, templateName: TemplateIdent, params: JsonNode): NwtT
 template decorateVariable(a: untyped): untyped =
   "{{" & a & "}}"
 
-proc toStr*(nwt: Nwt, token: Token, params: JsonNode): string = 
+proc toStr*(nwt: Nwt, token: Token, ctx: JsonNode): string = 
   ## transforms the token to its string representation 
   # TODO should this be `$`?
-
-  # template emptyValue():
   var bufval = ""
 
   case token.tokenType
@@ -245,8 +243,6 @@ proc toStr*(nwt: Nwt, token: Token, params: JsonNode): string =
   of NwtComment:
     return ""
   of NwtVariable:
-    # echo "token: ", token
-        # TODO dirty hack ? 
     if token.value == "debug":
       let dbg = """
       <pre>
@@ -257,12 +253,11 @@ proc toStr*(nwt: Nwt, token: Token, params: JsonNode): string =
           $2
       </pre>
       """ % @[ 
-          params.pretty(), 
+          ctx.pretty(), 
           ($blockTable)
           ]
       echo dbg
       return "<pre>" & dbg.xmlEncode & "</pre>"
-
     if token.value.startswith("self."):
       # echo "NODE STARTS WITH self. :: ", token.value
       var cmd = newChatCommand(token.value,false, @['.'])
@@ -270,15 +265,14 @@ proc toStr*(nwt: Nwt, token: Token, params: JsonNode): string =
       bufval.setLen(0)
       if blockTable.hasKey(templateName): 
         for token in blockTable[templateName]:
-          bufval.add nwt.toStr(token, params)
+          bufval.add nwt.toStr(token, ctx)
       elif nwt.echoEmptyVars:
         bufval = decorateVariable(token.value)
       else:
         bufval = ""
       return bufval
 
-    var node = params.getOrDefault(token.value)
-
+    var node = ctx.getOrDefault(token.value)
     if not node.isNil:
       case node.kind
       of JString:
@@ -289,7 +283,6 @@ proc toStr*(nwt: Nwt, token: Token, params: JsonNode): string =
         bufval = $(node.getFNum())
       else:
         bufval = ""
-
     if (bufval == "") and (nwt.echoEmptyVars == true):
       return token.value.decorateVariable ## return the token when it could not be replaced
     else:
@@ -302,7 +295,7 @@ proc evalScripts(nwt: Nwt, nwtTemplate: NwtTemplate , params: JsonNode = newJObj
   ## This evaluates the template logic.
   ## After this the template is fully epanded an is ready to convert it to strings
   ## TODO we should avoid looping multiple times....
-  var forBlocks = getBlocks(nwtTemplate, starting = "for", ending = "endfor")
+  # var forBlocks = getBlocks(nwtTemplate, starting = "for", ending = "endfor")
   ### [foo, in, baa]
   # echo "@@@______----: "
   # for
@@ -330,7 +323,6 @@ proc renderTemplate*(nwt: Nwt, templateName: TemplateIdent, params: JsonNode = n
   when not defined release:
     echo "WARNING THIS IS AN DEBUG BUILD. NWT PARSES THE HTML ON EVERY GET; THIS IS SLOW"
     nwt.loadTemplates(nwt.templatesDir)
-  
   result = ""
   var tokens = newNwtTemplate()
   blockTable.clear() ## ever new render ach scheiesse...
