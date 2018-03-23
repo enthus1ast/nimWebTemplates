@@ -27,18 +27,9 @@
 ##   get "/ass":
 ##     resp t.renderTemplate("ass.html", newStringTable({"content": $epochTime()}))
 ## runForever()
-
-import strtabs
-import strutils
-import parseutils
-import sequtils
-import os
-import tables
+import strtabs, strutils, parseutils, sequtils, os, tables ,json ,queues ,cgi
 import commandParser
-import nwtTokenizer
-import json
-import queues
-import cgi
+import nwtTokenizer 
 
 ########################################################
 ## For building a stack easily.....
@@ -63,15 +54,13 @@ proc pushl[T](s: var seq[T], itm: T)=
   s.insert(itm,0)
 ########################################################
 
-
 type
   TemplateIdent = string
   BlockIdent = string
   NwtTemplate = seq[Token]
   NwtTemplates = Table[TemplateIdent, NwtTemplate]
   Nwt* = ref object of RootObj
-    # templates*: StringTableRef ## we load all the templates we want to render to this strtab
-    templates*: NwtTemplates ## we parse templates on start
+    templates*: NwtTemplates
     templatesDir*: string
     echoEmptyVars*: bool ## set this to true to let nwt print an empty variable like this '{{variable}}' or '{{self.variable}}'
     blockTable: Table[string, seq[Token]]
@@ -329,7 +318,6 @@ proc renderTemplate*(nwt: Nwt, templateName: TemplateIdent, params: JsonNode = n
   if not nwt.templates.hasKey(templateName):
     raise newException(ValueError, "Template '$1' not found." % [templateName]) # UnknownTemplate
   tokens = nwt.evalTemplate(templateName, params)
-  echo tokens
   tokens = nwt.evalScripts(tokens, params) # expands `for` `if` etc
   for token in tokens:
     result.add nwt.toStr(token, params)
