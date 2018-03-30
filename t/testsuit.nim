@@ -106,6 +106,19 @@ block: ## param tests
   tmpls.echoEmptyVars = false
   assert tmpls.renderTemplate("run2.html", %* {"var1": "1", "var2": 2}) == "12"
 
+block: # autoescape test # TODO api (with option.`some`) is ugly
+  var t = newNwt(nil)
+  t.addTemplate("foo.html","{{foo}}")    
+  t.autoEscape = true
+  assert t.renderTemplate("foo.html", %* {"foo": ">"}) == "&gt;"
+  assert t.renderTemplate("foo.html", %* {"foo": ">"}, autoEscape = some false) == ">"
+
+  t.autoEscape = false
+  assert t.renderTemplate("foo.html", %* {"foo": ">"}) == ">"
+  assert t.renderTemplate("foo.html", %* {"foo": ">"}, autoEscape = some true) == "&gt;"
+
+
+
   # tmpls.templates.add("run.html", "{{var1}}{{var2}}{{var3}}")
 
   # block:

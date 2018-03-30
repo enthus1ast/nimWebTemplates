@@ -24,10 +24,11 @@
 ##   get "/ass":
 ##     resp t.renderTemplate("ass.html", newStringTable({"content": $epochTime()}))
 ## runForever()
-import strtabs, strutils, parseutils, sequtils, os, tables ,json ,queues ,cgi
+import strtabs, strutils, parseutils, sequtils, os, tables ,json ,queues ,cgi, options
 import commandParser
 import nwtTokenizer 
 import stack
+export options
 
 type
   TemplateIdent = string
@@ -38,6 +39,7 @@ type
     templates*: NwtTemplates
     templatesDir*: string
     echoEmptyVars*: bool ## set this to true to let nwt print an empty variable like this '{{variable}}' or '{{self.variable}}'
+    autoEscape*: bool ## automatically html escapes variables
   Block = tuple[name: string, cmd: ChatCommand, posStart: int, posEnd: int]
   Blocks = Table[BlockIdent, Block]
   Context = ref object
@@ -91,6 +93,7 @@ proc newNwt*(templatesDir: string = "./templates/*.html"): Nwt =
   result.templatesDir = templatesDir
   result.loadTemplates(templatesDir)
   result.echoEmptyVars = false 
+  result.autoEscape = false
 
 proc getBlocks*(nwtTemplate: NwtTemplate, starting="block", ending="endblock" ): Blocks = # TODO private
   # returns all {%block 'foo'%} statements as a Table of Block
@@ -194,7 +197,7 @@ proc evalTemplate(nwt: Nwt, templateName: TemplateIdent, ctx: Context): NwtTempl
 template decorateVariable(a: untyped): untyped =
   "{{" & a & "}}"
 
-proc toStr*(nwt: Nwt, token: Token, ctx: Context): string = 
+proc toStr*(nwt: Nwt, token: Token, ctx: Context, autoEscape: Option[bool]): string = 
   ## transforms the token to its string representation 
   # TODO should this be `$`?
   var bufval = ""
@@ -227,7 +230,7 @@ proc toStr*(nwt: Nwt, token: Token, ctx: Context): string =
       bufval.setLen(0)
       if ctx.nwtTemplates.hasKey(templateName): 
         for token in ctx.nwtTemplates[templateName]:
-          bufval.add nwt.toStr(token, ctx)
+          bufval.add nwt.toStr(token, ctx, autoEscape)
       elif nwt.echoEmptyVars:
         bufval = decorateVariable(token.value)
       else:
@@ -244,10 +247,17 @@ proc toStr*(nwt: Nwt, token: Token, ctx: Context): string =
         bufval = $(node.getFloat())
       else:
         bufval = ""
+
     if (bufval == "") and (nwt.echoEmptyVars == true):
       return token.value.decorateVariable ## return the token when it could not be replaced
     else:
-      return bufval
+
+      if (autoEscape.isNone and nwt.autoEscape) or (autoEscape.isSome and autoEscape.get()):
+        return bufval.xmlEncode
+      else:
+        return bufval
+  
+  
   else:
     return ""
 
@@ -264,7 +274,7 @@ proc toStr*(nwt: Nwt, token: Token, ctx: Context): string =
 #   #       echo forBlock.cmd.params[0], "->", each # , "-> ", each , "[" , idx , "]"
 #   return nwtTemplate
 
-proc renderTemplate*(nwt: Nwt, templateName: TemplateIdent, variables: JsonNode = newJObject()): string =  
+proc renderTemplate*(nwt: Nwt, templateName: TemplateIdent, variables: JsonNode = newJObject(), autoEscape: Option[bool] = none(bool)): string =  
   ## this returns the fully rendered template.
   ## all replacements are done.
   ## if the loaded template extends a base template, we parse this as well and fill all the blocks.
@@ -282,7 +292,7 @@ proc renderTemplate*(nwt: Nwt, templateName: TemplateIdent, variables: JsonNode 
   nwtTemplate = nwt.evalTemplate(templateName, ctx)
   # tokens = nwt.evalScripts(tokens, params) # expands `for` `if` etc
   for token in nwtTemplate:
-    result.add nwt.toStr(token, ctx)
+    result.add nwt.toStr(token, ctx, autoEscape = autoEscape)
 
 proc freeze*(nwt: Nwt, params: JsonNode = newJObject(), outputPath: string = "./freezed/", staticPath = "./public/") =
   ## generates the html for each template.

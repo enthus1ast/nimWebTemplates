@@ -14,5 +14,19 @@
   userOne has a filled emails list
 {% endif %}
 
+{% if true %}
+  Some text
+{% else %}
+  Never
+{% endif %}
 
+{% if users.mails | len == 1 %}
+  mails is 1
+{% elif users.mails | len == 2 %}
+  mails is 2
+{% elif users.mails | len == 3 %}
+  mails is 2  
+{% else %}
+  mails is something else
+{% endif %}
 
