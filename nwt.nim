@@ -78,11 +78,10 @@ proc loadTemplates*(nwt: Nwt, templatesDir: string) =
   ## basic wildcards supported:
   ##    /foo/baa/*.html
   ## call this for refreshing the templates 
-  if not templatesDir.isNil:
-    for filename in walkFiles(templatesDir):
-      var templateName = extractFilename(filename)
-      # echo "Load: $1 as $2", % [filename, templateName]
-      nwt.templates[templateName] = toSeq(nwtTokenize readFile(filename))
+  for filename in walkFiles(templatesDir):
+    var templateName = extractFilename(filename)
+    # echo "Load: $1 as $2", % [filename, templateName]
+    nwt.templates[templateName] = toSeq(nwtTokenize readFile(filename))
 
 proc newNwt*(templatesDir: string = "./templates/*.html"): Nwt =
   ## this loads all templates from the template into memory
@@ -312,7 +311,7 @@ when isMainModule:
   # echo "Loaded $1 templates." % [$nwt.templates.len]
   # import t/testsuit
   block:
-    var t = newNwt(nil)
+    var t = newNwt()
     # assert t.templates == initTable[system.string, seq[Token]]()
     assert t.templates == newNwtTemplates()
 
