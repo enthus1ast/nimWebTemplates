@@ -311,7 +311,7 @@ when isMainModule:
   # echo "Loaded $1 templates." % [$nwt.templates.len]
   # import t/testsuit
   block:
-    var t = newNwt()
+    var t = newNwt("") # "" do not read any templates
     # assert t.templates == initTable[system.string, seq[Token]]()
     assert t.templates == newNwtTemplates()
 
