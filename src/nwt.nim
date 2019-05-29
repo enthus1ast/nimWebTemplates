@@ -24,7 +24,7 @@
 ##   get "/ass":
 ##     resp t.renderTemplate("ass.html", newStringTable({"content": $epochTime()}))
 ## runForever()
-import strtabs, strutils, parseutils, sequtils, os, tables ,json ,queues ,cgi, options
+import strtabs, strutils, parseutils, sequtils, os, tables, json, cgi, options
 import commandParser
 import nwtTokenizer 
 import stack
