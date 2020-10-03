@@ -1,5 +1,7 @@
 nwt is a little template engine inspired by jinja2.
 
+(warning: it lacks control statements like `if` `while` etc..)
+
 it do not enforce any web framework so use whatever you like!
 
 rudimentary freeze support with `freeze()`
