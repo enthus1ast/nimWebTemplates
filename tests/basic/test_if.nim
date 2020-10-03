@@ -38,8 +38,8 @@ block:
   proc test(): string = compileTemplateStr("{%if someProc() %}{{ anotherProc() }} {{ anotherProc() * 2 }}{%endif%}")
   doAssert test() == "123 246"
 
-block:
-  proc test(ii: int, ss: string): string = compileTemplateStr("{%if ii == 123 %}{{ss}}{%else%}not simple{%endif%}")
-  doAssert test(123, "simple") == "simple"
-  doAssert test(456, "simple") == "not simple"
+# block:
+#   proc test(ii: int, ss: string): string = compileTemplateStr("{%if ii == 123 %}{{ss}}{%else%}not simple{%endif%}")
+#   doAssert test(123, "simple") == "simple"
+#   doAssert test(456, "simple") == "not simple"
 

@@ -18,9 +18,9 @@ import sequtils
 proc parseTo(tokens: seq[Token], tokenType: NwtToken, value: string): seq[Token] =
   result = @[]
   for token in tokens:
-    result.add token
     if token.tokenType == tokenType and token.value == value:
       break
+    result.add token
 
 proc parse(tokens: seq[Token]): NimNode =
   echo "parse: " , tokens
@@ -47,11 +47,11 @@ proc parse(tokens: seq[Token]): NimNode =
         result.add $`idn`
     of NwtEval:
       var parts = token.value.strip().split(" ")
-      if parts[0] == "if":
+      case parts[0]
+      of "if":
         var consumed = tokens[pos..^1].parseTo(NwtEval, "endif")
         pos.inc(consumed.len)
-        # var iff = newNimNode(nnkIfExpr)
-        # var condA = parseStmt(parts[1..^1].join(" "))
+        ## TODO 2 because last token is in there as stmt (bug i guess)
         var iff = newIfStmt(
           (
             parseStmt(parts[1..^1].join(" ")),
@@ -59,17 +59,26 @@ proc parse(tokens: seq[Token]): NimNode =
           )
         )
         result.add iff
-        # parse(condA, consumed[1..^1])
-        # iff.body = condA
-        # body.add iff
-        # iff.add(parseStmt(parts[1..^1].join(" ")))
-        # body.add iff
-
-      # var idn = parseStmt(value)
-      # body.add quote do:
-      #   `idn`
-      # if parts[0] == "endif":
-      #   discard
+      of "while":
+        var consumed = tokens[pos..^1].parseTo(NwtEval, "endwhile")
+        pos.inc(consumed.len)
+        var whileStmt = newNimNode(nnkWhileStmt)
+        whileStmt.add parseStmt(parts[1..^1].join(" "))
+        whileStmt.add parse(consumed[1..^1]) ## TODO 2 because last token is in there as stmt (bug i guess)
+        result.add whileStmt
+      of "for":
+        var consumed = tokens[pos..^1].parseTo(NwtEval, "endfor")
+        pos.inc(consumed.len)
+        var forStmt = newNimNode(nnkForStmt)
+        forStmt.add newIdentNode(parts[1])
+        # forStmt.add newNimNode(nnkNone) #newIdentNode("") # the second
+        # forStmt.add parseStmt()
+        forStmt.add parse(consumed[2..^1]) ## TODO 2 because last token is in there as stmt (bug i guess)
+        result.add forStmt
+      of "endif", "endwhile", "endfor":
+        discard ## TODO catching end statements should not be needed
+      else:
+        result.add token.value.parseStmt()
     else:
       discard
     pos.inc
