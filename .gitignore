@@ -6,3 +6,6 @@
 *.dll
 *.exe
 *.db
+testresults*
+outputGotten.txt
+tests/megatest.nim

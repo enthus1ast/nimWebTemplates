@@ -22,8 +22,9 @@ proc parseTo(tokens: seq[Token], tokenType: NwtToken, value: string): seq[Token]
     if token.tokenType == tokenType and token.value == value:
       break
 
-proc parse(body: NimNode, tokens: seq[Token]): NimNode =
+proc parse(tokens: seq[Token]): NimNode =
   echo "parse: " , tokens
+  result = newStmtList()
   var pos = 0
   while true:
     if pos >= tokens.len: break
@@ -38,11 +39,11 @@ proc parse(body: NimNode, tokens: seq[Token]): NimNode =
       # if body[^1].kind == nnkIfExpr:
       #   body[^1].add quote do: result.add `value`
       # else:
-      body.add quote do: result.add `value`
+      result.add quote do: result.add `value`
 
     of NwtVariable:
       var idn = parseStmt(value)
-      body.add quote do:
+      result.add quote do:
         result.add $`idn`
     of NwtEval:
       var parts = token.value.strip().split(" ")
@@ -57,6 +58,7 @@ proc parse(body: NimNode, tokens: seq[Token]): NimNode =
             parse(consumed[1..^1])
           )
         )
+        result.add iff
         # parse(condA, consumed[1..^1])
         # iff.body = condA
         # body.add iff
@@ -72,14 +74,14 @@ proc parse(body: NimNode, tokens: seq[Token]): NimNode =
       discard
     pos.inc
 
-macro compileTemplateStr(str: static string): untyped =
+macro compileTemplateStr*(str: static string): untyped =
   # result = newProc()
   # result = newStmtList()
   # var pr = newProc(newIdentNode("tst"), @[newIdentNode("string")])
   var body = newStmtList()
   var tokens = toSeq(nwtTokenize(str))
   echo tokens
-  parse(body, tokens)
+  body = parse(tokens)
   # pr.body = body
   # echo repr pr
   echo repr body
@@ -89,28 +91,21 @@ macro compileTemplateStr(str: static string): untyped =
 # dumpAstGen:
 #   proc tst(): string = discard
 
-type
-  MyObj = object
-    aa: float
-    ss: string
 
-proc faa(foo: int, obj: MyObj): string =
-  # echo "FAA"
-  # const ttt = "asdf asdf {{foo * 2}} more {{(obj.aa)}} {{obj.ss.len}} {# Some comment #} {{obj}}"
-  # const ttt = "{%if (foo == 123)%}echo 123{%endif%}  {%if (foo == 567)%}echo 567{%endif%}"
-  # const ttt = "{%while true%}"
-  const ttt = "{%if (foo == 123)%}{%if (obj.aa == 13.37)%}leet{%endif%}{%endif%}"
-  compileTemplateStr(ttt)
-# echo tst()
+when isMainModule:
+  type
+    MyObj = object
+      aa: float
+      ss: string
 
-echo faa(123, MyObj(aa: 13.37, ss: "some string"))
+  proc faa(foo: int, obj: MyObj): string =
+    # echo "FAA"
+    # const ttt = "asdf asdf {{foo * 2}} more {{(obj.aa)}} {{obj.ss.len}} {# Some comment #} {{obj}}"
+    # const ttt = "{%if (foo == 123)%}echo 123{%endif%}  {%if (foo == 567)%}echo 567{%endif%}"
+    # const ttt = "{%while true%}"
+    const ttt = "{%if (foo == 123)%}{%if (obj.aa == 13.37)%}leet{%endif%}{%endif%}"
+    compileTemplateStr(ttt)
+  # echo tst()
 
+  echo faa(123, MyObj(aa: 13.37, ss: "some string"))
 
-when isMainModule and false:
-  proc simple(): string = compileTemplateStr("simple")
-  proc simpleVar(ii: int): string = compileTemplateStr("simple{{ii}}simple")
-  assert simple() == "simple"
-  assert simpleVar(123) == "simple123simple"
-
-
-# assert
