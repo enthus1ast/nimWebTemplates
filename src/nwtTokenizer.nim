@@ -9,49 +9,49 @@
 ## :Author: David Krause (enthus1ast)
 ##
 ## a jinja like template syntax parser
-## 
+##
 ## This is the tokenizer of nwt.
 ##
 ## From this html:
-## 
+##
 ## .. code-block::
-## 
+##
 ##     <html>
 ##       <head>
 ##         <title>{%block "title" %}BASE{%endblock%}</title>
 ##       </head>
 ##       <body>
-##    
+##
 ##         <style>
 ##           body {
 ##             background-color: darkslategray;
 ##             color: white;
 ##           }
 ##         </style>
-##    
-##    
+##
+##
 ##         <h1>Welcome from base</h1>
 ##         <div id="content">
 ##           {# <h1>{{content}}</h1>  #}
 ##         </div>
 ##           {%block "content2" %}{%endblock%}
 ##         <div>
-##          
+##
 ##         </div>
-##        
+##
 ##         <div>
 ##           Hier beschreibe ich nwt's syntax:
 ##           <!-- {{aksd}} -->
-##    
+##
 ##         </div>
 ##       </body>
 ##     </html>
 
 ##
 ## This gets generated:
-## 
+##
 ## .. code-block::
-## 
+##
 ##   (tokenType: NwtString, value: <html>
 ##     <head>
 ##       <title>)
@@ -61,30 +61,30 @@
 ##   (tokenType: NwtString, value: </title>
 ##     </head>
 ##     <body>
-##     
+##
 ##       <style>
 ##         body {
 ##           background-color: darkslategray;
 ##           color: white;
 ##         }
 ##       </style>
-##   
-##   
+##
+##
 ##       <h1>Welcome from base</h1>
 ##       <div id="content">
 ##         <h1>)
 ##   (tokenType: NwtVariable, value: content)
-##   (tokenType: NwtString, value: </h1> 
+##   (tokenType: NwtString, value: </h1>
 ##       </div>
 ##       )
 ##   (tokenType: NwtEval, value: block "content2")
 ##   (tokenType: NwtEval, value: endblock)
-##   (tokenType: NwtString, value: 
-##   
+##   (tokenType: NwtString, value:
+##
 ##       <div>
-##         
+##
 ##       </div>
-##       
+##
 ##       <div>
 ##         Hier beschreibe ich nwt's syntax:
 ##       </div>
@@ -97,12 +97,12 @@ import strutils
 import tables
 import strtabs
 
-proc debugPrint(buffer: string, pos: int) = 
-  var pointPos = if pos - 1 < 0: 0 else: pos - 1
+proc debugPrint(buffer: string, pos: int) =
+  let pointPos = if pos - 1 < 0: 0 else: pos - 1
   echo buffer
   echo '-'.repeat(pointPos) & "^"
 
-type 
+type
   TemplateSyntaxError* = ref object # of Exception
   UnknownTemplate* = ref object  #of Exception
 
@@ -110,20 +110,24 @@ type
     NwtString, # a string block
     NwtComment,
     NwtEval,
-    NwtVariable
+    NwtVariable,
+    NwtTokens
 
-  Token* = object of RootObj 
-    tokenType*: NwtToken # the type of the token
-    value*: string # the value 
+  Token* = object
+    # tokenType*: NwtToken # the type of the token
+    tokenType*: NwtToken
+    value*: string # the value
+    tokens*: seq[Token]
 
   Block* = tuple[name: string, posStart: int, posEnd: int]
 
-proc newToken*(tokenType:NwtToken, value: string): Token = 
+proc newToken*(tokenType: NwtToken, value: string, tokens: seq[Token] = @[]): Token =
   result = Token()
   result.tokenType = tokenType
   result.value = value
+  result.tokens = @[]
 
-proc extractTemplateName*(raw: string): string = 
+proc extractTemplateName*(raw: string): string =
   ## returns the template name from
   ##  extends "base.html"
   ## returns "base.html"
@@ -139,18 +143,18 @@ proc extractTemplateName*(raw: string): string =
   if result != "": return
 
   result = parts[1] #   " or ' are missing
-  
+
 
 iterator nwtTokenize*(s: string): Token =
   ## transforms nwt templates into tokens
-  var 
-    buffer: string = s 
+  var
+    buffer: string = s
     pos = 0
     toyieldlater = "" # we use this to reconstruct a string whitch contains a "{"
 
   while true:
     var stringToken = ""
-    pos = buffer.parseUntil(stringToken,'{',pos) + pos
+    pos += buffer.parseUntil(stringToken,'{', pos)
     # buffer.debugPrint(pos)
 
     if buffer == "{":
@@ -166,27 +170,27 @@ iterator nwtTokenize*(s: string): Token =
     if stringToken != "" :
       toyieldlater.add stringToken
     pos.inc # skip "{"
-    if buffer.continuesWith("{",pos): 
+    if buffer.continuesWith("{", pos):
       if toyieldlater != "": yield newToken(NwtString, toyieldlater); toyieldlater = ""
       pos.inc # skip {
-      pos = buffer.parseUntil(stringToken,'}',pos) + pos
+      pos += buffer.parseUntil(stringToken,'}', pos)
       yield newToken(NwtVariable, stringToken.strip())
       pos.inc # skip }
       pos.inc # skip }
-    elif buffer.continuesWith("#",pos): 
+    elif buffer.continuesWith("#", pos):
       if toyieldlater != "": yield newToken(NwtString, toyieldlater); toyieldlater = ""
       pos.inc # skip #
-      pos = buffer.parseUntil(stringToken,'#',pos) + pos
-      pos.inc # skip end # 
-      if buffer.continuesWith("}", pos): 
+      pos += buffer.parseUntil(stringToken, '#', pos)
+      pos.inc # skip end #
+      if buffer.continuesWith("}", pos):
         pos.inc # skip }
         yield newToken(NwtComment, stringToken[0..^1].strip())
-    elif buffer.continuesWith("%",pos): 
+    elif buffer.continuesWith("%", pos):
       if toyieldlater != "": yield newToken(NwtString, toyieldlater); toyieldlater = ""
       pos.inc # skip #
-      pos = buffer.parseUntil(stringToken,'%',pos) + pos
-      pos.inc # skip end # 
-      if buffer.continuesWith("}", pos): 
+      pos += buffer.parseUntil(stringToken,'%',pos)
+      pos.inc # skip end #
+      if buffer.continuesWith("}", pos):
         pos.inc # skip }
         yield newToken(NwtEval, stringToken[0..^1].strip())
     else:
@@ -195,7 +199,7 @@ iterator nwtTokenize*(s: string): Token =
         yield newToken(NwtString, toyieldlater)
       else:
         # echo "we found a { somewhere so we have to prepend it"
-        toyieldlater = toyieldlater & "{" 
+        toyieldlater = toyieldlater & "{"
       discard
 
     if pos >= buffer.len: # TODO check if this has to be '>'
@@ -218,7 +222,7 @@ when isMainModule:
   assert toSeq(nwtTokenize("{% raw %}")) == @[newToken(NwtEval, "raw")]
   assert toSeq(nwtTokenize("{% for each in foo %}")) == @[newToken(NwtEval, "for each in foo")]
 
-  assert toSeq(nwtTokenize("body { background-color: blue; }")) == 
+  assert toSeq(nwtTokenize("body { background-color: blue; }")) ==
     @[newToken(NwtString, "body { background-color: blue; }")]
 
   assert toSeq(nwtTokenize("{ nope }")) == @[newToken(NwtString, "{ nope }")]
@@ -232,7 +236,7 @@ when isMainModule:
   assert toSeq(nwtTokenize("""{%block 'first'%}{%blockend%}""")) == @[newToken(NwtEval, "block 'first'"), newToken(NwtEval, "blockend")]
   assert toSeq(nwtTokenize("foo {baa}")) == @[newToken(NwtString, "foo {baa}")]
 
-  assert toSeq(nwtTokenize("foo {{baa}} {baa}")) == @[newToken(NwtString, "foo "), 
+  assert toSeq(nwtTokenize("foo {{baa}} {baa}")) == @[newToken(NwtString, "foo "),
                                                       newToken(NwtVariable, "baa"),
                                                       newToken(NwtString, " {baa}")]
   # extractTemplateName tests
@@ -240,20 +244,20 @@ when isMainModule:
   assert extractTemplateName("""extends "foobaa.html"""") == "foobaa.html"
   assert extractTemplateName("""extends 'foobaa.html'""") == "foobaa.html"
   assert extractTemplateName("""extends foobaa.html""") == "foobaa.html"
-  assert extractTemplateName("""extends foobaa.html""") == "foobaa.html" 
-  assert extractTemplateName(toSeq(nwtTokenize("""{% extends "foobaa.html" %}"""))[0].value) == "foobaa.html" 
-  block: 
-    var tokens = toSeq(nwtTokenize("""{% extends "foobaa.html" %}{% extends "goo.html" %} """)) 
+  assert extractTemplateName("""extends foobaa.html""") == "foobaa.html"
+  assert extractTemplateName(toSeq(nwtTokenize("""{% extends "foobaa.html" %}"""))[0].value) == "foobaa.html"
+  block:
+    var tokens = toSeq(nwtTokenize("""{% extends "foobaa.html" %}{% extends "goo.html" %} """))
     assert extractTemplateName(tokens[0].value) == "foobaa.html"
     assert extractTemplateName(tokens[1].value) == "goo.html"
-  block: 
-    var tokens = toSeq(nwtTokenize("""{% extends foobaa.html %}{% extends goo.html %}""")) 
+  block:
+    var tokens = toSeq(nwtTokenize("""{% extends foobaa.html %}{% extends goo.html %}"""))
     assert extractTemplateName(tokens[0].value) == "foobaa.html"
     assert extractTemplateName(tokens[1].value) == "goo.html"
-  block: 
-    var tokens = toSeq(nwtTokenize("""{%extends "foobaa.html" %}{% extends 'goo.html' %}""")) 
+  block:
+    var tokens = toSeq(nwtTokenize("""{%extends "foobaa.html" %}{% extends 'goo.html' %}"""))
     assert extractTemplateName(tokens[0].value) == "foobaa.html"
     assert extractTemplateName(tokens[1].value) == "goo.html"
-  block: 
-    var tokens = toSeq(nwtTokenize("""{%extends foobaa.html%}""")) 
-    assert extractTemplateName(tokens[0].value) == "foobaa.html"    
+  block:
+    var tokens = toSeq(nwtTokenize("""{%extends foobaa.html%}"""))
+    assert extractTemplateName(tokens[0].value) == "foobaa.html"
