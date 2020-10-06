@@ -1,0 +1,20 @@
+<html>
+
+<head>
+  <title>{{obj.name}}</title>
+</head>
+
+<body>
+  {{ now() }}
+  <h1>{{obj.name}}</h1>
+  The entries in the obj:<br>
+  <a href="add">add more</a><br><br>
+  {% var idx = 0 %} {# TODO for is not that advanced yet to, workaround #}
+  {% for entry in obj.entries %}
+    {#{% include entry.ninja %}#}
+    <a href="entry/{{idx}}">Num: {{idx}} ({{entry.ss}})</a><br>
+    {% idx.inc %}
+  {% endfor %}
+</body>
+
+</html>

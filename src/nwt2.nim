@@ -33,7 +33,7 @@ proc parseTo(tokens: seq[Token], tokenType: NwtToken, value: string): seq[Token]
       break
     result.add token
 
-proc parse(tokens: seq[Token]): NimNode =
+proc parse(tokens: seq[Token]): NimNode {.gcsafe.} =
   echo "parse: " , tokens
   result = newStmtList()
   var pos = 0
@@ -128,14 +128,14 @@ macro compileTemplateFile*(path: static string): void =
   body = parse(tokens)
   return body
 
-proc foo(): string = compileTemplateFile("tests/templates/one.html")
-echo foo()
 
 # dumpAstGen:
 #   proc tst(): string = discard
 
 
 when isMainModule:
+  proc foo(): string = compileTemplateFile("tests/templates/one.html")
+  echo foo()
   type
     MyObj = object
       aa: float
