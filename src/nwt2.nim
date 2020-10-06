@@ -13,6 +13,17 @@ import strutils
 #   for token in nwtTokenize("{%if true%}asdf{%endif%}"):
 #     echo token
 
+# type
+#   NinjaNodeKind = enum
+#     NjIf
+#     NjElif
+#     NjElse
+#     NjFor
+#     NjWhile
+#   NinjaNode = object
+#     kind: NinjaNodeKind
+
+
 import sequtils
 
 proc parseTo(tokens: seq[Token], tokenType: NwtToken, value: string): seq[Token] =
@@ -75,6 +86,9 @@ proc parse(tokens: seq[Token]): NimNode =
         # forStmt.add parseStmt()
         forStmt.add parse(consumed[2..^1]) ## TODO 2 because last token is in there as stmt (bug i guess)
         result.add forStmt
+      of "include":
+        # result.add
+        result.add parse( toSeq(nwtTokenize(readFile(token.value.extractTemplateName()))))
       of "endif", "endwhile", "endfor":
         discard ## TODO catching end statements should not be needed
       else:
@@ -83,12 +97,12 @@ proc parse(tokens: seq[Token]): NimNode =
       discard
     pos.inc
 
-macro compileTemplateStr*(str: static string): untyped =
+macro compileTemplateStr*(str: untyped): untyped =
   # result = newProc()
   # result = newStmtList()
   # var pr = newProc(newIdentNode("tst"), @[newIdentNode("string")])
   var body = newStmtList()
-  var tokens = toSeq(nwtTokenize(str))
+  var tokens = toSeq(nwtTokenize(str.strVal))
   echo tokens
   body = parse(tokens)
   # pr.body = body
@@ -96,6 +110,16 @@ macro compileTemplateStr*(str: static string): untyped =
   echo repr body
   return body
 
+macro compileTemplateFile*(path: static string): void =
+  var str = readFile(path)
+  var body = newStmtList()
+  var tokens = toSeq(nwtTokenize(str))
+  echo tokens
+  body = parse(tokens)
+  return body
+
+proc foo(): string = compileTemplateFile("tests/templates/one.html")
+echo foo()
 
 # dumpAstGen:
 #   proc tst(): string = discard

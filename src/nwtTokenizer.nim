@@ -111,21 +111,21 @@ type
     NwtComment,
     NwtEval,
     NwtVariable,
-    NwtTokens
+    # NwtTokens
 
   Token* = object
     # tokenType*: NwtToken # the type of the token
     tokenType*: NwtToken
     value*: string # the value
-    tokens*: seq[Token]
+    # tokens*: seq[Token]
 
   Block* = tuple[name: string, posStart: int, posEnd: int]
 
-proc newToken*(tokenType: NwtToken, value: string, tokens: seq[Token] = @[]): Token =
+proc newToken*(tokenType: NwtToken, value: string): Token =
   result = Token()
   result.tokenType = tokenType
   result.value = value
-  result.tokens = @[]
+  # result.tokens = @[]
 
 proc extractTemplateName*(raw: string): string =
   ## returns the template name from
@@ -221,19 +221,24 @@ when isMainModule:
   assert toSeq(nwtTokenize("hello")) == @[newToken(NwtString, "hello")]
   assert toSeq(nwtTokenize("{{var}}")) == @[newToken(NwtVariable, "var")]
   assert toSeq(nwtTokenize("{{ var }}")) == @[newToken(NwtVariable, "var")]
-  assert toSeq(nwtTokenize("{{var}}{{var}}")) == @[newToken(NwtVariable, "var"),
-      newToken(NwtVariable, "var")]
-  assert toSeq(nwtTokenize("{#i am a comment#}")) == @[newToken(NwtComment,
-      "i am a comment")]
-  assert toSeq(nwtTokenize("{# i am a comment #}")) == @[newToken(NwtComment,
-      "i am a comment")]
+  assert toSeq(nwtTokenize("{{var}}{{var}}")) == @[
+    newToken(NwtVariable, "var"),
+    newToken(NwtVariable, "var")
+  ]
+  assert toSeq(nwtTokenize("{#i am a comment#}")) == @[
+    newToken(NwtComment, "i am a comment")
+  ]
+  assert toSeq(nwtTokenize("{# i am a comment #}")) == @[
+    newToken(NwtComment, "i am a comment")
+  ]
   assert toSeq(nwtTokenize("{%raw%}")) == @[newToken(NwtEval, "raw")]
   assert toSeq(nwtTokenize("{% raw %}")) == @[newToken(NwtEval, "raw")]
   assert toSeq(nwtTokenize("{% for each in foo %}")) == @[newToken(NwtEval,
       "for each in foo")]
 
-  assert toSeq(nwtTokenize("body { background-color: blue; }")) ==
-    @[newToken(NwtString, "body { background-color: blue; }")]
+  assert toSeq(nwtTokenize("body { background-color: blue; }")) == @[
+    newToken(NwtString, "body { background-color: blue; }")
+  ]
 
   assert toSeq(nwtTokenize("{ nope }")) == @[newToken(NwtString, "{ nope }")]
   assert toSeq(nwtTokenize("{nope}")) == @[newToken(NwtString, "{nope}")]
@@ -243,22 +248,25 @@ when isMainModule:
   assert toSeq(nwtTokenize("{")) == @[newToken(NwtString, "{")]
   assert toSeq(nwtTokenize("}")) == @[newToken(NwtString, "}")]
 
-  assert toSeq(nwtTokenize("""{%block 'first'%}{%blockend%}""")) == @[newToken(
-      NwtEval, "block 'first'"), newToken(NwtEval, "blockend")]
+  assert toSeq(nwtTokenize("""{%block 'first'%}{%blockend%}""")) == @[
+    newToken(NwtEval, "block 'first'"),
+    newToken(NwtEval, "blockend")
+  ]
+
   assert toSeq(nwtTokenize("foo {baa}")) == @[newToken(NwtString, "foo {baa}")]
 
-  assert toSeq(nwtTokenize("foo {{baa}} {baa}")) == @[newToken(NwtString, "foo "),
-                                                      newToken(NwtVariable,
-                                                          "baa"),
-                                                      newToken(NwtString, " {baa}")]
+  assert toSeq(nwtTokenize("foo {{baa}} {baa}")) == @[
+    newToken(NwtString, "foo "),
+    newToken(NwtVariable, "baa"),
+    newToken(NwtString, " {baa}")
+  ]
   # extractTemplateName tests
   assert extractTemplateName("""extends "foobaa.html" """) == "foobaa.html"
   assert extractTemplateName("""extends "foobaa.html"""") == "foobaa.html"
   assert extractTemplateName("""extends 'foobaa.html'""") == "foobaa.html"
   assert extractTemplateName("""extends foobaa.html""") == "foobaa.html"
   assert extractTemplateName("""extends foobaa.html""") == "foobaa.html"
-  assert extractTemplateName(toSeq(nwtTokenize(
-      """{% extends "foobaa.html" %}"""))[0].value) == "foobaa.html"
+  assert extractTemplateName(toSeq(nwtTokenize("""{% extends "foobaa.html" %}"""))[0].value) == "foobaa.html"
   block:
     var tokens = toSeq(nwtTokenize("""{% extends "foobaa.html" %}{% extends "goo.html" %} """))
     assert extractTemplateName(tokens[0].value) == "foobaa.html"
