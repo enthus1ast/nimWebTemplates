@@ -78,13 +78,23 @@ proc parse(tokens: seq[Token]): NimNode =
         whileStmt.add parse(consumed[1..^1]) ## TODO 2 because last token is in there as stmt (bug i guess)
         result.add whileStmt
       of "for":
+        # {% for idx in 0 .. ii %}
+        #   {{idx}}
+        # {% endfor %}
+        #####
+        # var ff = newNimNode nnkForStmt #(ident1, ident2, expr1, stmt1)
+        # ff.add ident("idx")
+        # ff.add parseExpr("0 .. 10")
+        # ff.add parseExpr("echo idx")
         var consumed = tokens[pos..^1].parseTo(NwtEval, "endfor")
         pos.inc(consumed.len)
         var forStmt = newNimNode(nnkForStmt)
         forStmt.add newIdentNode(parts[1])
+        forStmt.add parseExpr(parts[3..^1].join(" "))
+        echo repr forStmt
         # forStmt.add newNimNode(nnkNone) #newIdentNode("") # the second
         # forStmt.add parseStmt()
-        forStmt.add parse(consumed[2..^1]) ## TODO 2 because last token is in there as stmt (bug i guess)
+        forStmt.add parse(consumed[1..^1]) ## TODO 2 because last token is in there as stmt (bug i guess)
         result.add forStmt
       of "include":
         # result.add
