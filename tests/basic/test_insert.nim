@@ -1,26 +1,41 @@
 discard """
   joinable: true
 """
+## insert is useful when you want to embed a document into another,
+## for example for documentation, or blogs that show a script in html but also want to make it downloadable,
+## when you use insert, then you can change the script file and regenerate, then your blog is up to date
 import ../../src/nwt2
 
 block:
   proc test(): string =
-    compileTemplateStr("{% for cnt in \"12345\" %}{{cnt}}{%endfor%}")
-  doAssert test() == "12345"
+    compileTemplateStr("{% insert tests/data/data1234.txt%}")
+  doAssert test() == "1234"
 
 block:
   proc test(): string =
-    compileTemplateStr("{% for cnt in [\"foo\", \"baa\", \"baz\"] %}{{cnt}}{%endfor%}")
-  doAssert test() == "foobaabaz"
+    compileTemplateStr("<raw>{% insert tests/data/data1234.txt%}</raw>")
+  doAssert test() == "<raw>1234</raw>"
+
+## TODO all these commands must accept a string or a variable,
+## `"a string"`  `aVariable` <- so without quotes its a var, with quotes its string?
+# block:
+#   proc test(): string =
+#     let rawPath = "tests/data/data1234.txt"
+#     compileTemplateStr("{% insert rawPath %}")
+#   doAssert test() == "1234"
 
 # ## This test does not work yet :/
-block:
-  proc test(): string =
-    compileTemplateStr("{% for idx, cnt in \"abcdef\".pairs() %}{{idx}}{{cnt}}{%endfor%}")
-  doAssert test() == "0a1b2c3e4f"
+# block:
+#   proc test(): string =
+#     compileTemplateStr("{% for idx, cnt in \"abcdef\".pairs() %}{{idx}}{{cnt}}{%endfor%}")
+#   doAssert test() == "0a1b2c3e4f"
 
 
 
+# block:
+#   proc test(): string =
+#     compileTemplateStr("{% for cnt in [\"foo\", \"baa\", \"baz\"] %}{{cnt}}{%endfor%}")
+#   doAssert test() == "foobaabaz"
 
 # block:
 #   proc test(): string =

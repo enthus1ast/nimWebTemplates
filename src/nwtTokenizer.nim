@@ -106,7 +106,7 @@ type
   TemplateSyntaxError* = ref object # of Exception
   UnknownTemplate* = ref object #of Exception
 
-  NwtToken* = enum
+  NwtToken* = enum # TODO rename to TokenKind or TokenType
     NwtString, # a string block
     NwtComment,
     NwtEval,
