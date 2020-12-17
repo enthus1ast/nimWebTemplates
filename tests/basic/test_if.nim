@@ -1,5 +1,5 @@
 discard """
-  joinable: true
+  joinable: false
 """
 import ../../src/nwt2
 
@@ -42,10 +42,10 @@ block:
   proc test(): string = compileTemplateStr("{%if true %}A{%if true %}B{%endif%}C{%if false %}D{%endif%}{%endif%}")
   doAssert test() == "ABC"
 
-
-
-# block:
-#   proc test(ii: int, ss: string): string = compileTemplateStr("{%if ii == 123 %}{{ss}}{%else%}not simple{%endif%}")
-#   doAssert test(123, "simple") == "simple"
-#   doAssert test(456, "simple") == "not simple"
+# For one who has no bigger experience for "compiler/interpreter" crafting.
+# If/else is a challenge.
+block:
+  proc test(ii: int, ss: string): string = compileTemplateStr("{%if ii == 123 %}{{ss}}{%else%}not simple{%endif%}")
+  doAssert test(123, "simple") == "simple"
+  doAssert test(456, "simple") == "not simple"
 

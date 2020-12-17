@@ -80,9 +80,26 @@ proc parse(tokens: seq[Token]): NimNode {.gcsafe.} =
         var consumed = tokens[pos..^1].parseTo(NwtEval, ["endfor"].toHashSet)
         pos.inc(consumed.len)
         var forStmt = newNimNode(nnkForStmt)
-        forStmt.add newIdentNode(parts[1])
-        forStmt.add parseExpr(parts[3..^1].join(" "))
+        # forStmt.add newIdentNode(parts[1])
+
+        ## TODO this seems to work, make it nice later
+        for part in token.value.strip().split("for", 1)[1].split("in")[0].split(","):
+          echo "P: ", part
+          forStmt.add newIdentNode(part.strip(chars = Whitespace + {'(', ')'}))
+
+        forStmt.add parseExpr(token.value.strip().split("for", 1)[1].split("in")[1])
+        # echo parts
+        # forStmt.add parseExpr(token.value.strip().split("for", 1)[1]) #.split("in")
+        # echo "PART#########"
+        # echo parts[1..^1].join(" ")
+        # echo "PART^#########"
+
+        # forStmt.add parseExpr(parts[1..^1].join(" "))
+        # forStmt.add parseExpr(parts[3..^1].join(" "))
+
+        echo "FOR STMT"
         echo repr forStmt
+        echo "##########"
         # forStmt.add newNimNode(nnkNone) #newIdentNode("") # the second
         # forStmt.add parseStmt()
         forStmt.add parse(consumed[1..^1]) ## TODO 2 because last token is in there as stmt (bug i guess)
@@ -91,8 +108,8 @@ proc parse(tokens: seq[Token]): NimNode {.gcsafe.} =
         # result.add
         result.add parse( toSeq(nwtTokenize(readFile(token.value.extractTemplateName()))))
       of "insert":
-        ## Literaly insert an other file into the template
-        ## useful for documentation
+        ## Literaly insert another file into the template
+        ## useful for documentation?
         let rawContent = readFile(token.value.extractTemplateName())
         result.add quote do: result.add `rawContent`
       # of "set":
@@ -135,7 +152,12 @@ macro compileTemplateFile*(path: static string): void =
   body = parse(tokens)
   return body
 
-when isMainModule:
+when isMainModule and true:
+  import httpclient
+  proc get(url: string): string =
+    var client = newHttpClient()
+    return client.getContent(url)
+
   var idx = 0
   proc foo(): string = compileTemplateFile("tests/templates/one.html")
   echo foo()

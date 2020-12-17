@@ -61,16 +61,30 @@ import macros
 #   var whenstmt = newNimNode(nnkWhenStmt)
 #   newNimNode(nnkEl)
 
-macro sset() =
-  result = parseStmt("""
-when not declared(aa):
-  var aa = 123
-else:
-  aa = 123
-  """)
+# for `in` in "123":
+#   echo `in`
 
-sset()
-echo aa
+# import strutils
+# echo """for idx, cnt in ["foo", "baa", "baz"].pairs():""".split("for", 1)[1].split("in")
+
+for (idx,cnt) in "abcdef".pairs():
+  echo idx
+  echo cnt
+
+# macro sset() =
+# #   result = parseStmt("""
+# # for idx, cnt in ["foo", "baa", "baz"].pairs():
+# #   echo $cnt
+# #   """)
+# #   echo repr result
+# #   echo repr parseExpr("""
+# # idx, cnt in ["foo", "baa", "baz"].pairs()
+# #   """)
+#   # echo repr result
+
+
+# sset()
+# echo aa
 # macro mm() =
 #   # echo repr parseStmt("for idx in 0..myvar")
 #   var ff = newNimNode nnkForStmt #(ident1, ident2, expr1, stmt1)

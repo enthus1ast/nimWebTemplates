@@ -1,5 +1,5 @@
 discard """
-  joinable: true
+  joinable: false
 """
 import ../../src/nwt2
 

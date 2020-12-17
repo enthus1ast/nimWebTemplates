@@ -20,13 +20,26 @@
 </table>
 
 <table>
-  {% for item in 0 .. ii %}
+  {% for ii, item in ["foo", "baa", "baz"].pairs() %}
     <tr>
       <td>IDX:</td>
       <td>
-        {{idx}}
+        {{ii}} {{item}}
+        {% if ii mod 2 == 0 %}
+          MOD == 0
+        {% else %}
+          NOT !! ! !
+        {% endif %}
         {% include tests/templates/foo.html %}
       </td>
     </tr>
   {% endfor %}
 </table>
+
+
+{% for ii, item in ["https://google.de", "https://blog.fefe.de"].pairs() %}
+  {{ii}} {{item}}
+  <raw>
+    {{get(item).len}}
+  </raw>
+{% endfor %}
