@@ -69,39 +69,15 @@ proc parse(tokens: seq[Token]): NimNode {.gcsafe.} =
         whileStmt.add parse(consumed[1..^1]) ## TODO 2 because last token is in there as stmt (bug i guess)
         result.add whileStmt
       of "for":
-        # {% for idx in 0 .. ii %}
-        #   {{idx}}
-        # {% endfor %}
-        #####
-        # var ff = newNimNode nnkForStmt #(ident1, ident2, expr1, stmt1)
-        # ff.add ident("idx")
-        # ff.add parseExpr("0 .. 10")
-        # ff.add parseExpr("echo idx")
         var consumed = tokens[pos..^1].parseTo(NwtEval, ["endfor"].toHashSet)
         pos.inc(consumed.len)
         var forStmt = newNimNode(nnkForStmt)
-        # forStmt.add newIdentNode(parts[1])
-
         ## TODO this seems to work, make it nice later
         for part in token.value.strip().split("for", 1)[1].split("in")[0].split(","):
           echo "P: ", part
           forStmt.add newIdentNode(part.strip(chars = Whitespace + {'(', ')'}))
-
         forStmt.add parseExpr(token.value.strip().split("for", 1)[1].split("in")[1])
-        # echo parts
-        # forStmt.add parseExpr(token.value.strip().split("for", 1)[1]) #.split("in")
-        # echo "PART#########"
-        # echo parts[1..^1].join(" ")
-        # echo "PART^#########"
 
-        # forStmt.add parseExpr(parts[1..^1].join(" "))
-        # forStmt.add parseExpr(parts[3..^1].join(" "))
-
-        echo "FOR STMT"
-        echo repr forStmt
-        echo "##########"
-        # forStmt.add newNimNode(nnkNone) #newIdentNode("") # the second
-        # forStmt.add parseStmt()
         forStmt.add parse(consumed[1..^1]) ## TODO 2 because last token is in there as stmt (bug i guess)
         result.add forStmt
       of "include":

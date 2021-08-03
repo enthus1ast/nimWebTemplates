@@ -213,6 +213,7 @@ iterator nwtTokenize*(s: string): Token =
       break
 
 
+
 when isMainModule:
   # var nwt = newNwt()
   # echo "Loaded $1 templates." % [$nwt.templates.len]
