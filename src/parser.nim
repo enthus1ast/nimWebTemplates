@@ -4,7 +4,7 @@ import nwtTokenizer, sequtils, parseutils
 
 type
   NwtNodeKind = enum
-    NStr, NComment, NIf, NElif, NElse, NWhile, NFor, NVariable, NEval
+    NStr, NComment, NIf, NElif, NElse, NWhile, NFor, NVariable, NEval, NImport
   NwtNode = object
     case kind: NwtNodeKind
     of NStr:
@@ -29,6 +29,8 @@ type
       variableBody: string
     of NEval:
       evalBody: string
+    of NImport:
+      importBody: string
     # of NElse:
     #   elseBody: seq[NwtNode]
     else: discard
@@ -39,99 +41,99 @@ type IfState {.pure.} = enum
 ## First step nodes
 type
   FsNodeKind = enum
-    FsIf, FsStr, FsEval, FsElse, FsElif, FsEndif, FsFor, FsEndfor, FsVariable, FsWhile, FsEndWhile
+    FsIf, FsStr, FsEval, FsElse, FsElif, FsEndif, FsFor, FsEndfor, FsVariable, FsWhile, FsEndWhile, FsImport
   FSNode = object
     kind: FsNodeKind
     value: string
 
-const SPACE = "  "
+# const SPACE = "  "
 
 
 # proc nn(kind: NwtNodeKind, body: seq[NwtNode]): NwtNode =
 #   return NwtNode(kind: kind, body: body)
 
-const vif = NwtNode(kind: NIf,
-  ifStmt: "a == 1",
-  nnThen: @[
-    NwtNode(kind: NStr, strBody: "a is one"),
-    NwtNode(kind: NComment, commentBody: "some info"),
-    NwtNode(kind: NStr, strBody: "and more stuff"),
-    NwtNode(kind: NVariable, variableBody: "SPACE"),
-    NwtNode(kind: NEval, evalBody: "idx.inc(foo + baa)")
-  ],
-  nnElif: @[
-    NwtNode(kind: NElif, elifStmt: "a == 2", elifBody: @[
-      NwtNode(kind: NStr, strBody: "a\nis\ntwo")
-    ]),
-    NwtNode(kind: NElif, elifStmt: "a == 3", elifBody: @[
-      NwtNode(kind: NStr, strBody: "a is three")
-    ]),
-  ],
-  nnElse: @[NwtNode(kind: NStr, strBody: "a is something else")]
-)
+# const vif = NwtNode(kind: NIf,
+#   ifStmt: "a == 1",
+#   nnThen: @[
+#     NwtNode(kind: NStr, strBody: "a is one"),
+#     NwtNode(kind: NComment, commentBody: "some info"),
+#     NwtNode(kind: NStr, strBody: "and more stuff"),
+#     NwtNode(kind: NVariable, variableBody: "SPACE"),
+#     NwtNode(kind: NEval, evalBody: "idx.inc(foo + baa)")
+#   ],
+#   nnElif: @[
+#     NwtNode(kind: NElif, elifStmt: "a == 2", elifBody: @[
+#       NwtNode(kind: NStr, strBody: "a\nis\ntwo")
+#     ]),
+#     NwtNode(kind: NElif, elifStmt: "a == 3", elifBody: @[
+#       NwtNode(kind: NStr, strBody: "a is three")
+#     ]),
+#   ],
+#   nnElse: @[NwtNode(kind: NStr, strBody: "a is something else")]
+# )
 
-proc render(node: NwtNode, ident: int): string
-proc render(nodes: seq[NwtNode], ident: int): string
+# proc render(node: NwtNode, ident: int): string
+# proc render(nodes: seq[NwtNode], ident: int): string
 proc parseSecondStep(fsTokens: seq[FSNode], pos: var int): seq[NwtNode]
 
-func renderComment(node: NwtNode, ident: int): string =
-  SPACE.repeat(ident) & "#" & node.commentBody & "\n"
+# func renderComment(node: NwtNode, ident: int): string =
+#   SPACE.repeat(ident) & "#" & node.commentBody & "\n"
 
-func renderStr(node: NwtNode, ident: int): string =
-  SPACE.repeat(ident) & "result &= \"\"\"" & node.strBody & "\"\"\"" & "\n"
+# func renderStr(node: NwtNode, ident: int): string =
+#   SPACE.repeat(ident) & "result &= \"\"\"" & node.strBody & "\"\"\"" & "\n"
 
-func renderVariable(node: NwtNode, ident: int): string =
-  SPACE.repeat(ident) & "result &= $(" & node.variableBody & ")" & "\n"
+# func renderVariable(node: NwtNode, ident: int): string =
+#   SPACE.repeat(ident) & "result &= $(" & node.variableBody & ")" & "\n"
 
-func renderEval(node: NwtNode, ident: int): string =
-  SPACE.repeat(ident) & node.evalBody & "\n"
+# func renderEval(node: NwtNode, ident: int): string =
+#   SPACE.repeat(ident) & node.evalBody & "\n"
 
-proc renderIf(node: NwtNode, ident: int): string =
-  result &= SPACE.repeat(ident) & fmt"if {node.ifStmt}:" & "\n"
-  result &= SPACE.repeat(ident) & render(node.nnThen, ident + 1)
+# proc renderIf(node: NwtNode, ident: int): string =
+#   result &= SPACE.repeat(ident) & fmt"if {node.ifStmt}:" & "\n"
+#   result &= SPACE.repeat(ident) & render(node.nnThen, ident + 1)
 
-  for nodeElif in node.nnElif:
-    result &= fmt"elif {nodeElif.elifStmt}:" & "\n"
-    result &= render(nodeElif.elifBody, ident + 1)
+#   for nodeElif in node.nnElif:
+#     result &= fmt"elif {nodeElif.elifStmt}:" & "\n"
+#     result &= render(nodeElif.elifBody, ident + 1)
 
-  if node.nnelse.len > 0:
-    result &= SPACE.repeat(ident) & fmt"else:" & "\n"
-    for nodeElse in node.nnElse:
-      result &= SPACE.repeat(ident) & render(nodeElse, ident + 1)
+#   if node.nnelse.len > 0:
+#     result &= SPACE.repeat(ident) & fmt"else:" & "\n"
+#     for nodeElse in node.nnElse:
+#       result &= SPACE.repeat(ident) & render(nodeElse, ident + 1)
 
-proc renderWhile(node: NwtNode, ident: int): string =
-  result &= SPACE.repeat(ident) & fmt"while {node.whileStmt}:" & "\n"
-  result &= SPACE.repeat(ident) & render(node.whileBody, ident + 1)
+# proc renderWhile(node: NwtNode, ident: int): string =
+#   result &= SPACE.repeat(ident) & fmt"while {node.whileStmt}:" & "\n"
+#   result &= SPACE.repeat(ident) & render(node.whileBody, ident + 1)
 
-proc renderFor(node: NwtNode, ident: int): string =
-  result &= SPACE.repeat(ident) & fmt"for {node.forStmt}:" & "\n"
-  result &= SPACE.repeat(ident) & render(node.forBody, ident + 1)
+# proc renderFor(node: NwtNode, ident: int): string =
+#   result &= SPACE.repeat(ident) & fmt"for {node.forStmt}:" & "\n"
+#   result &= SPACE.repeat(ident) & render(node.forBody, ident + 1)
 
-proc render(nodes: seq[NwtNode], ident: int): string =
-  for node in nodes:
-    result &= render(node, ident)
+# proc render(nodes: seq[NwtNode], ident: int): string =
+#   for node in nodes:
+#     result &= render(node, ident)
 
-proc render(node: NwtNode, ident: int): string =
-  result = ""
-  case node.kind
-  of NComment:
-    result &= renderComment(node, ident)
-  of NStr:
-    result &= renderStr(node, ident)
-  of NIf:
-    result &= renderIf(node, ident)
-  of NWhile:
-    result &= renderWhile(node, ident)
-  of NFor:
-    result &= renderFor(node, ident)
-  of NVariable:
-    result &= renderVariable(node, ident)
-  of NEval:
-    # Eval could also be NVariable?
-    result &= renderEval(node, ident)
-  else:
-    echo "COULD NOT RENDER: ", node
-    discard
+# proc render(node: NwtNode, ident: int): string =
+#   result = ""
+#   case node.kind
+#   of NComment:
+#     result &= renderComment(node, ident)
+#   of NStr:
+#     result &= renderStr(node, ident)
+#   of NIf:
+#     result &= renderIf(node, ident)
+#   of NWhile:
+#     result &= renderWhile(node, ident)
+#   of NFor:
+#     result &= renderFor(node, ident)
+#   of NVariable:
+#     result &= renderVariable(node, ident)
+#   of NEval:
+#     # Eval could also be NVariable?
+#     result &= renderEval(node, ident)
+#   else:
+#     echo "COULD NOT RENDER: ", node
+#     discard
 
 # echo render(vif, 0)
 
@@ -170,6 +172,8 @@ proc parseFirstStep(tokens: seq[Token]): seq[FSNode] =
         result.add FSNode(kind: FsWhile, value: suf)
       of "endwhile":
         result.add FSNode(kind: FsEndWhile, value: suf)
+      of "import":
+        result.add FSNode(kind: FsImport, value: suf)
       else:
         result.add FSNode(kind: FsEval, value: token.value)
     elif token.tokenType == NwtString:
@@ -416,72 +420,74 @@ proc astAst(tokens: seq[NwtNode]): seq[NimNode] =
   for token in tokens:
     result.add astAstOne(token)
 
-macro compileTemplateStr*(str: untyped): untyped =
+macro compileTemplateStr*(str: typed): untyped =
   var lexerTokens = toSeq(nwtTokenize(str.strVal))
   var firstStepTokens = parseFirstStep(lexerTokens)
   var pos = 0
   var secondsStepTokens = parseSecondStep(firstStepTokens, pos)
   result = newStmtList()
   for token in secondsStepTokens:
-    # result.add newLit(repr token)
-    echo token
     result.add astAstOne(token)
-    # let vb = token.variableBody
-    # result.add quote do:
-      # result &= vb
-    # if token.kind == NVariable:
-    #   result.add astVariable(token) #parseStmt(fmt"result &= $({token.variableBody})")
-    # elif token.kind == NStr:
-    #   result.add astStr(token) #parseStmt(fmt"result &= $({token.variableBody})")
 
-  # result.add newLit("foo")
-  echo repr result
-
-when isMainModule:
-  expandMacros:
-    var result = ""
-    compileTemplateStr("{{foo}}baa{% idx.inc() %}{# a comment #}{%if foo() == baa()%}baa{{BAA}}{%elif true == true%}elif branch{%elif false == false%}elif branch2{%else%}ELSEBRANCH{%endif%}    {%for idx in 0..10%}{%if true%}{{TRAA}}{%endif%}{%endfor%}   {% var loop = 0%}{%while loop < 10%} {% loop.inc %} {%endwhile%} ")
-
-macro compileTemplateStr3*(str: untyped): untyped =
-  var body = newStmtList()
-
-  var lexerTokens = toSeq(nwtTokenize(str.strVal))
-  echo "Lexer tokens:"
-  echo lexerTokens
-
-  var firstStepTokens = parseFirstStep(lexerTokens)
-  echo "firstStepTokens:"
-  echo firstStepTokens
-
-  var pos = 0
-  var secondsStepTokens = parseSecondStep(firstStepTokens, pos)
-  echo "secondsStepTokens:"
-  echo secondsStepTokens
-
-  var renderedText = render(secondsStepTokens, 0)
-  echo "renderedText:"
-  echo renderedText
-
-  body.add parseStmt(renderedText)
-  return body
-
-proc onlyFirstAndSecond(str: string): string =
+macro compileTemplateFile*(path: static string): untyped =
+  let str = staticRead(path)
+  # let pathn = newNimNode(nnkStrLit)
+  # pathn.strVal = str
+  # compileTemplateStr(str)
+  ## TODO Why can't i call the other template?
   var lexerTokens = toSeq(nwtTokenize(str))
-  echo "Lexer tokens:"
-  echo lexerTokens
-
   var firstStepTokens = parseFirstStep(lexerTokens)
-  echo "firstStepTokens:"
-  echo firstStepTokens
-
   var pos = 0
   var secondsStepTokens = parseSecondStep(firstStepTokens, pos)
-  echo "secondsStepTokens:"
-  echo secondsStepTokens
+  result = newStmtList()
+  for token in secondsStepTokens:
+    result.add astAstOne(token)
 
-  var renderedText = render(secondsStepTokens, 0)
-  echo "renderedText:"
-  echo renderedText
+# when isMainModule:
+#   expandMacros:
+#     var result = ""
+#     compileTemplateStr("{{foo}}baa{% idx.inc() %}{# a comment #}{%if foo() == baa()%}baa{{BAA}}{%elif true == true%}elif branch{%elif false == false%}elif branch2{%else%}ELSEBRANCH{%endif%}    {%for idx in 0..10%}{%if true%}{{TRAA}}{%endif%}{%endfor%}   {% var loop = 0%}{%while loop < 10%} {% loop.inc %} {%endwhile%} ")
+
+# macro compileTemplateStr3*(str: untyped): untyped =
+#   var body = newStmtList()
+
+#   var lexerTokens = toSeq(nwtTokenize(str.strVal))
+#   echo "Lexer tokens:"
+#   echo lexerTokens
+
+#   var firstStepTokens = parseFirstStep(lexerTokens)
+#   echo "firstStepTokens:"
+#   echo firstStepTokens
+
+#   var pos = 0
+#   var secondsStepTokens = parseSecondStep(firstStepTokens, pos)
+#   echo "secondsStepTokens:"
+#   echo secondsStepTokens
+
+#   var renderedText = render(secondsStepTokens, 0)
+#   echo "renderedText:"
+#   echo renderedText
+
+#   body.add parseStmt(renderedText)
+#   return body
+
+# proc onlyFirstAndSecond(str: string): string =
+#   var lexerTokens = toSeq(nwtTokenize(str))
+#   echo "Lexer tokens:"
+#   echo lexerTokens
+
+#   var firstStepTokens = parseFirstStep(lexerTokens)
+#   echo "firstStepTokens:"
+#   echo firstStepTokens
+
+#   var pos = 0
+#   var secondsStepTokens = parseSecondStep(firstStepTokens, pos)
+#   echo "secondsStepTokens:"
+#   echo secondsStepTokens
+
+#   var renderedText = render(secondsStepTokens, 0)
+#   echo "renderedText:"
+#   echo renderedText
 
 # proc onlyFirstAndSecondRaw(str: string): seq[NwtNode] =
 import json
