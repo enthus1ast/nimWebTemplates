@@ -4,7 +4,7 @@ import nwtTokenizer, sequtils, parseutils
 
 type
   NwtNodeKind = enum
-    NStr, NComment, NIf, NElif, NElse, NWhile, NVariable, NEval
+    NStr, NComment, NIf, NElif, NElse, NWhile, NFor, NVariable, NEval
   NwtNode = object
     case kind: NwtNodeKind
     of NStr:
@@ -22,6 +22,9 @@ type
     of NWhile:
       whileStmt: string
       whileBody: seq[NwtNode]
+    of NFor:
+      forStmt: string
+      forBody: seq[NwtNode]
     of NVariable:
       variableBody: string
     of NEval:
@@ -91,13 +94,18 @@ proc renderIf(node: NwtNode, ident: int): string =
     result &= fmt"elif {nodeElif.elifStmt}:" & "\n"
     result &= render(nodeElif.elifBody, ident + 1)
 
-  result &= SPACE.repeat(ident) & fmt"else:" & "\n"
-  for nodeElse in node.nnElse:
-    result &= SPACE.repeat(ident) & render(nodeElse, ident + 1)
+  if node.nnelse.len > 0:
+    result &= SPACE.repeat(ident) & fmt"else:" & "\n"
+    for nodeElse in node.nnElse:
+      result &= SPACE.repeat(ident) & render(nodeElse, ident + 1)
 
 proc renderWhile(node: NwtNode, ident: int): string =
-  result &= SPACE.repeat(ident) & fmt"while ({node.whileStmt}):" & "\n"
+  result &= SPACE.repeat(ident) & fmt"while {node.whileStmt}:" & "\n"
   result &= SPACE.repeat(ident) & render(node.whileBody, ident + 1)
+
+proc renderFor(node: NwtNode, ident: int): string =
+  result &= SPACE.repeat(ident) & fmt"for {node.forStmt}:" & "\n"
+  result &= SPACE.repeat(ident) & render(node.forBody, ident + 1)
 
 proc render(nodes: seq[NwtNode], ident: int): string =
   for node in nodes:
@@ -114,12 +122,15 @@ proc render(node: NwtNode, ident: int): string =
     result &= renderIf(node, ident)
   of NWhile:
     result &= renderWhile(node, ident)
+  of NFor:
+    result &= renderFor(node, ident)
   of NVariable:
     result &= renderVariable(node, ident)
   of NEval:
     # Eval could also be NVariable?
     result &= renderEval(node, ident)
   else:
+    echo "COULD NOT RENDER: ", node
     discard
 
 # echo render(vif, 0)
@@ -127,9 +138,13 @@ proc render(node: NwtNode, ident: int): string =
 # var tokens = toSeq(nwtTokenize("""{% if a == 1 %}{# a comment #}a{% if sex == "male"%}HE{%else%}SHE{%endif%}is one{{ONE}}{% elif a == 2 %}a is two{{TWO}}{% elif a == 3 %}a is three{{THREE}}{% else %}a is something else{{ELSE}}{%endif%}"""))
 # echo tokens
 
-func splitStmt(str: string): tuple[pref: string, suf: string] =
-  var pos = parseIdent(str, result.pref, 0)
+
+func splitStmt(str: string): tuple[pref: string, suf: string] {.inline.} =
+  ## the prefix is normalized (transformed to lowercase)
+  var pref = ""
+  var pos = parseIdent(str, pref, 0)
   pos += str.skipWhitespace(pos)
+  result.pref = toLowerAscii(pref)
   result.suf = str[pos..^1]
 
 
@@ -182,6 +197,8 @@ template addCorrectNode(container: seq[NwtNode], elem: FsNode) =
 
 # proc parseSsElif(fsTokens: seq[FsNode], pos: var int): NwtNode =
 
+proc parseSecondStepOne(fsTokens: seq[FSNode], pos: var int): NwtNode
+
 
 proc parseSsIf(fsTokens: seq[FsNode], pos: var int): NwtNode =
   # echo "parseSSif"
@@ -200,14 +217,14 @@ proc parseSsIf(fsTokens: seq[FsNode], pos: var int): NwtNode =
       # TODO open a new if; where to put the parsed node from the recursive if parser??
       #### TODO pack this into func/template
       if ifState == IfState.InThen:
-        # result.nnThen.add parseSecondStep(fsTokens, pos) ## TODO should be parseSecondStep
-        result.nnThen.add parseSsIf(fsTokens, pos) ## TODO should be parseSecondStep
+        result.nnThen.add parseSecondStep(fsTokens, pos) ## TODO should be parseSecondStep
+        # result.nnThen.add parseSsIf(fsTokens, pos) ## TODO should be parseSecondStep
       if ifState == IfState.InElse:
-        # result.nnElse.add parseSecondStep(fsTokens, pos) ## TODO should be parseSecondStep
-        result.nnElse.add parseSsIf(fsTokens, pos) ## TODO should be parseSecondStep
+        result.nnElse.add parseSecondStep(fsTokens, pos) ## TODO should be parseSecondStep
+        # result.nnElse.add parseSsIf(fsTokens, pos) ## TODO should be parseSecondStep
       if ifState == IfState.InElif:
-        # result.nnElif[^1].elifBody.add parseSecondStep(fsTokens, pos) ## TODO should be parseSecondStep
-        result.nnElif[^1].elifBody.add parseSsIf(fsTokens, pos) ## TODO should be parseSecondStep
+        result.nnElif[^1].elifBody.add parseSecondStep(fsTokens, pos) ## TODO should be parseSecondStep
+        # result.nnElif[^1].elifBody.add parseSsIf(fsTokens, pos) ## TODO should be parseSecondStep
       ####
 
     elif elem.kind == FsElif:
@@ -222,50 +239,59 @@ proc parseSsIf(fsTokens: seq[FsNode], pos: var int): NwtNode =
       break
     else:
       if ifState == IfState.InThen:
-        result.nnThen.addCorrectNode(elem)
+        result.nnThen &= parseSecondStepOne(fsTokens, pos) #addCorrectNode(elem)
       if ifState == IfState.InElse:
-        result.nnElse.addCorrectNode(elem)
+        result.nnElse &= parseSecondStepOne(fsTokens, pos)
       if ifState == IfState.InElif:
-        result.nnElif[^1].elifBody.addCorrectNode(elem)
+        result.nnElif[^1].elifBody &= parseSecondStepOne(fsTokens, pos)
         # var elifnode = NwtNode(kind: NElif)
         # result.nnElif.add NwtNode(kind: NStr, strBody: elem.value) # TODO choose right NwtNodeKind
     pos.inc
 
 
-proc parseSecondStepOne(fsTokens: seq[FSNode], pos: var int): NwtNode
 
 
 proc parseSsWhile(fsTokens: seq[FsNode], pos: var int): NwtNode =
-  # echo "parseSSif"
   var elem: FsNode = fsTokens[pos] # first is the while that we got called about
   result = NwtNode(kind: NwtNodeKind.NWhile)
   result.whileStmt = elem.value
   while pos < fsTokens.len:
-    echo "jjjjjjjjjjjjjjjjjjj ", pos
     pos.inc # skip the while
     echo fsTokens[pos .. ^1]
     elem = fsTokens[pos]
     echo elem
-    if elem.kind == FsWhile:
-      echo "OPEN ANOTHER WHILE #############################################################"
-      # result.whileBody &= parseSsWhile(fsTokens, pos) # new while (could be parseSecondStep as well)
-    elif elem.kind == FsEndWhile:
-      # pos.inc
+    if elem.kind == FsEndWhile:
       echo "BR: ", fsTokens[pos .. ^1]
       break
     else:
-      # pos.inc
-      discard
       result.whileBody &= parseSecondStepOne(fsTokens, pos)
-    # pos.inc
 
+proc parseSsFor(fsTokens: seq[FsNode], pos: var int): NwtNode =
+  var elem: FsNode = fsTokens[pos] # first is the while that we got called about
+  result = NwtNode(kind: NwtNodeKind.NFor)
+  result.forStmt = elem.value
+  while pos < fsTokens.len:
+    pos.inc # skip the while
+    echo fsTokens[pos .. ^1]
+    elem = fsTokens[pos]
+    echo elem
+    if elem.kind == FsEndFor:
+      echo "BR: ", fsTokens[pos .. ^1]
+      break
+    else:
+      result.forBody &= parseSecondStepOne(fsTokens, pos)
 
 proc parseSecondStepOne(fsTokens: seq[FSNode], pos: var int): NwtNode =
     let fsToken = fsTokens[pos]
+
+    # Compley Types
     if fsToken.kind == FSif:  #or fsToken.kind == FSElif:
       return parseSsIf(fsTokens, pos)
     elif fsToken.kind == FsWhile:
       return parseSsWhile(fsTokens, pos)
+    elif fsToken.kind == FsFor:
+      return parseSsFor(fsTokens, pos)
+    # Simple Types
     elif fsToken.kind == FsStr:
       return NwtNode(kind: NStr, strBody: fsToken.value)
     elif fsToken.kind == FsVariable:
@@ -278,12 +304,7 @@ proc parseSecondStepOne(fsTokens: seq[FSNode], pos: var int): NwtNode =
 proc parseSecondStep(fsTokens: seq[FSNode], pos: var int): seq[NwtNode] =
   # var pos = 0
   while pos < fsTokens.len:
-    # var fsToken = fsTokens[pos]
     result &= parseSecondStepOne(fsTokens, pos)
-      # var node = NwtNode(kind: NIf, ifStmt: fsToken.value)
-      # result.add node
-    # elif fsToken.kind == FsStr:
-      # Append if last was 'if'
     pos.inc # skip the current elem (test if the inner procs should forward)
 
 
@@ -328,6 +349,17 @@ proc onlyFirstAndSecond(str: string): string =
   echo "renderedText:"
   echo renderedText
 
+# proc onlyFirstAndSecondRaw(str: string): seq[NwtNode] =
+import json
+proc prettyNwt(str: string): string =
+  var lexerTokens = toSeq(nwtTokenize(str))
+  var firstStepTokens = parseFirstStep(lexerTokens)
+  var pos = 0
+  var secondsStepTokens = parseSecondStep(firstStepTokens, pos)
+  return (%* secondsStepTokens).pretty()
+
+
+
 when isMainModule:
   discard
 
@@ -340,12 +372,50 @@ when isMainModule:
   #   assert "a is threeTHREE" == testMe(a = 3)
 
   block:
-    echo onlyFirstAndSecond("""{{foo}}{% while idx < 10 %}idx is: {{idx}}{%idx.inc%}{% endwhile %}baa{{zaa}}""")
+    # echo onlyFirstAndSecond("""{{foo}}{% while idx < 10 %}idx is: {{idx}}{%idx.inc%}{% endwhile %}baa{{zaa}}""")
+    # echo onlyFirstAndSecond("""{{foo}}{% while idx < 10 %}idx is: {{idx}}{%idx.inc%}{% endwhile %}baa{{zaa}}""")
+    # echo onlyFirstAndSecond("""{% while isAA() %}AA{%while isBB()%}BB{%while isCC()%}CC{%endwhile%}{%endwhile%}{% endwhile %}baa{{zaa}}""")
+    # echo onlyFirstAndSecond("""{%if elems.len > 0%}{% while isFoo() %}FOO{% endwhile %}{%endif%}""")
+
+    # echo onlyFirstAndSecond("""{% for idx in 0..10 %}{{idx}}<br>{%endfor%}""")
+
+    # ## Wrong render but ast looks good...
+    # echo onlyFirstAndSecond("""{%if elems.len > 0%}{% while isFoo() %}FOO{%if true%}true{%endif%}{% endwhile %}{%endif%}baa""")
+    # echo onlyFirstAndSecond("""
+    #   {%if elems.len > 0%}
+    #     {% while isFoo() %}
+    #       FOO
+    #       {%if true%}
+    #         true
+    #       {%endif%}
+    #     {% endwhile %}
+    #   {%endif%}
+    #   baa""")
+
+
 
     # proc testMe(): string =
     #   compileTemplateStr3 """{% while idx < 10 %}idx is: {{idx}}{%idx.inc%}{%endwhile%}"""
     # echo testMe()
 
+    # # Rendered wrong, ast seems ok
+    # proc testMe(): string =
+    #   compileTemplateStr3 """{%while true%}{% for idx in 0..10 %}{{idx}}<br>{%endfor%}{%endwhile%}"""
+    # echo testMe()
+
+    echo prettyNwt("""{% var foo: string = ":D" %}{% for idx in 0..10 %}{% foo &= $idx %}foo={{foo}}<br>{%endfor%}""")
+
+
+    type TestObj = object
+      foo: string
+      baa: int
+    proc testObj(tobj: TestObj): string =
+      compileTemplateStr3 """{% for idx in 0 .. tobj.baa  %}{{idx}}{{tobj.foo}}{%endfor%}"""
+    echo testObj(TestObj(foo:"_FOO", baa: 20))
+
+    # proc testMe2(): string =
+    #   compileTemplateStr3 """{% var foo: string = ":D" %}{% for idx in 0..10 %}{% foo &= $idx %}foo={{foo}}<br>{%endfor%}"""
+    # echo testMe2()
 
 
 
