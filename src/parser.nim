@@ -308,6 +308,139 @@ proc parseSecondStep(fsTokens: seq[FSNode], pos: var int): seq[NwtNode] =
     pos.inc # skip the current elem (test if the inner procs should forward)
 
 
+# macro renderAst(fsTokens: seq[FSNode], pos: var int): untyped =
+#   for fsToken in fsTokens:
+#     echo  fsToken
+
+proc astAst(tokens: seq[NwtNode]): seq[NimNode]
+proc astAstOne(token: NwtNode): NimNode
+
+
+proc astVariable(token: NwtNode): NimNode =
+  return nnkStmtList.newTree(
+    nnkInfix.newTree(
+      newIdentNode("&="),
+      newIdentNode("result"),
+      newCall(
+        "$",
+        newIdentNode(token.variableBody)
+      )
+
+      # newIdentNode(token.variableBody)
+    )
+  )
+
+proc astStr(token: NwtNode): NimNode =
+  return nnkStmtList.newTree(
+    nnkInfix.newTree(
+      newIdentNode("&="),
+      newIdentNode("result"),
+      newStrLitNode(token.strBody)
+    )
+  )
+
+proc astEval(token: NwtNode): NimNode =
+  return parseStmt(token.evalBody)
+
+proc astComment(token: NwtNode): NimNode =
+  return newCommentStmtNode(token.commentBody)
+
+proc astFor(token: NwtNode): NimNode =
+  let easyFor = "for " & token.forStmt & ": discard" # `discard` to make a parsable construct
+  result = parseStmt(easyFor)
+  result[0][2] = newStmtList(astAst(token.forBody)) # overwrite discard with real for body
+
+proc astWhile(token: NwtNode): NimNode =
+  nnkStmtList.newTree(
+    nnkWhileStmt.newTree(
+      parseStmt(token.whileStmt),
+      nnkStmtList.newTree(
+        astAst(token.whileBody)
+      )
+    )
+  )
+  # let easyFor = "for " & token.forStmt & ": discard" # `discard` to make a parsable construct
+  # result = parseStmt(easyFor)
+  # result[0][2] = newStmtList(astAst(token.forBody)) # overwrite discard with real for body
+
+
+proc astIf(token: NwtNode): NimNode =
+  result = nnkIfStmt.newTree()
+
+  # Add the then node
+  result.add:
+    nnkElifBranch.newTree(
+      parseStmt(token.ifStmt),
+      nnkStmtList.newTree(
+        astAst(token.nnThen)
+      )
+    )
+
+  ## Add the elif nodes
+  for elifToken in token.nnElif:
+    result.add:
+      nnkElifBranch.newTree(
+        parseStmt(elifToken.elifStmt),
+        nnkStmtList.newTree(
+          astAst(elifToken.elifBody)
+        )
+      )
+
+  # Add the else node
+  if token.nnElse.len > 0:
+    result.add:
+      nnkElse.newTree(
+        nnkStmtList.newTree(
+          astAst(token.nnElse)
+        )
+      )
+
+
+proc astAstOne(token: NwtNode): NimNode =
+  if token.kind == NVariable:
+    return astVariable(token)
+  elif token.kind == NStr:
+    return astStr(token)
+  elif token.kind == NEval:
+    return astEval(token)
+  elif token.kind == NComment:
+    return astComment(token)
+  elif token.kind == NIf:
+    return astIf(token)
+  elif token.kind == NFor:
+    return astFor(token)
+  elif token.kind == NWhile:
+    return astWhile(token)
+
+proc astAst(tokens: seq[NwtNode]): seq[NimNode] =
+  for token in tokens:
+    result.add astAstOne(token)
+
+macro compileTemplateStr4*(str: untyped): untyped =
+  var lexerTokens = toSeq(nwtTokenize(str.strVal))
+  var firstStepTokens = parseFirstStep(lexerTokens)
+  var pos = 0
+  var secondsStepTokens = parseSecondStep(firstStepTokens, pos)
+  result = newStmtList()
+  for token in secondsStepTokens:
+    # result.add newLit(repr token)
+    echo token
+    result.add astAstOne(token)
+    # let vb = token.variableBody
+    # result.add quote do:
+      # result &= vb
+    # if token.kind == NVariable:
+    #   result.add astVariable(token) #parseStmt(fmt"result &= $({token.variableBody})")
+    # elif token.kind == NStr:
+    #   result.add astStr(token) #parseStmt(fmt"result &= $({token.variableBody})")
+
+  # result.add newLit("foo")
+  echo repr result
+
+expandMacros:
+  var result = ""
+  compileTemplateStr4("{{foo}}baa{% idx.inc() %}{# a comment #}{%if foo() == baa()%}baa{{BAA}}{%elif true == true%}elif branch{%elif false == false%}elif branch2{%else%}ELSEBRANCH{%endif%}    {%for idx in 0..10%}{%if true%}{{TRAA}}{%endif%}{%endfor%}   {% var loop = 0%}{%while loop < 10%} {% loop.inc %} {%endwhile%} ")
+
 macro compileTemplateStr3*(str: untyped): untyped =
   var body = newStmtList()
 
@@ -372,6 +505,7 @@ when isMainModule:
   #   assert "a is threeTHREE" == testMe(a = 3)
 
   block:
+    discard
     # echo onlyFirstAndSecond("""{{foo}}{% while idx < 10 %}idx is: {{idx}}{%idx.inc%}{% endwhile %}baa{{zaa}}""")
     # echo onlyFirstAndSecond("""{{foo}}{% while idx < 10 %}idx is: {{idx}}{%idx.inc%}{% endwhile %}baa{{zaa}}""")
     # echo onlyFirstAndSecond("""{% while isAA() %}AA{%while isBB()%}BB{%while isCC()%}CC{%endwhile%}{%endwhile%}{% endwhile %}baa{{zaa}}""")
@@ -403,15 +537,15 @@ when isMainModule:
     #   compileTemplateStr3 """{%while true%}{% for idx in 0..10 %}{{idx}}<br>{%endfor%}{%endwhile%}"""
     # echo testMe()
 
-    echo prettyNwt("""{% var foo: string = ":D" %}{% for idx in 0..10 %}{% foo &= $idx %}foo={{foo}}<br>{%endfor%}""")
+    # echo prettyNwt("""{% var foo: string = ":D" %}{% for idx in 0..10 %}{% foo &= $idx %}foo={{foo}}<br>{%endfor%}""")
 
 
-    type TestObj = object
-      foo: string
-      baa: int
-    proc testObj(tobj: TestObj): string =
-      compileTemplateStr3 """{% for idx in 0 .. tobj.baa  %}{{idx}}{{tobj.foo}}{%endfor%}"""
-    echo testObj(TestObj(foo:"_FOO", baa: 20))
+    # type TestObj = object
+    #   foo: string
+    #   baa: int
+    # proc testObj(tobj: TestObj): string =
+    #   compileTemplateStr3 """{% for idx in 0 .. tobj.baa  %}{{idx}}{{tobj.foo}}{%endfor%}"""
+    # echo testObj(TestObj(foo:"_FOO", baa: 20))
 
     # proc testMe2(): string =
     #   compileTemplateStr3 """{% var foo: string = ":D" %}{% for idx in 0..10 %}{% foo &= $idx %}foo={{foo}}<br>{%endfor%}"""
