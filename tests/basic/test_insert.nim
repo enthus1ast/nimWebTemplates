@@ -9,12 +9,12 @@ import ../../src/nwt2
 
 block:
   proc test(): string =
-    compileTemplateStr("{% insert tests/data/data1234.txt%}")
+    compileTemplateStr("""{% importnwt "../../tests/data/data1234.txt" %}""")
   doAssert test() == "1234"
 
 block:
   proc test(): string =
-    compileTemplateStr("<raw>{% insert tests/data/data1234.txt%}</raw>")
+    compileTemplateStr("""<raw>{% importnwt "../../tests/data/data1234.txt" %}</raw>""")
   doAssert test() == "<raw>1234</raw>"
 
 ## TODO all these commands must accept a string or a variable,
