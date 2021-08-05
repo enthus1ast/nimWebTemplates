@@ -323,7 +323,7 @@ proc astVariable(token: NwtNode): NimNode =
       newIdentNode("result"),
       newCall(
         "$",
-        newIdentNode(token.variableBody)
+        parseStmt(token.variableBody)
       )
 
       # newIdentNode(token.variableBody)
@@ -416,7 +416,7 @@ proc astAst(tokens: seq[NwtNode]): seq[NimNode] =
   for token in tokens:
     result.add astAstOne(token)
 
-macro compileTemplateStr4*(str: untyped): untyped =
+macro compileTemplateStr*(str: untyped): untyped =
   var lexerTokens = toSeq(nwtTokenize(str.strVal))
   var firstStepTokens = parseFirstStep(lexerTokens)
   var pos = 0
@@ -437,9 +437,10 @@ macro compileTemplateStr4*(str: untyped): untyped =
   # result.add newLit("foo")
   echo repr result
 
-expandMacros:
-  var result = ""
-  compileTemplateStr4("{{foo}}baa{% idx.inc() %}{# a comment #}{%if foo() == baa()%}baa{{BAA}}{%elif true == true%}elif branch{%elif false == false%}elif branch2{%else%}ELSEBRANCH{%endif%}    {%for idx in 0..10%}{%if true%}{{TRAA}}{%endif%}{%endfor%}   {% var loop = 0%}{%while loop < 10%} {% loop.inc %} {%endwhile%} ")
+when isMainModule:
+  expandMacros:
+    var result = ""
+    compileTemplateStr("{{foo}}baa{% idx.inc() %}{# a comment #}{%if foo() == baa()%}baa{{BAA}}{%elif true == true%}elif branch{%elif false == false%}elif branch2{%else%}ELSEBRANCH{%endif%}    {%for idx in 0..10%}{%if true%}{{TRAA}}{%endif%}{%endfor%}   {% var loop = 0%}{%while loop < 10%} {% loop.inc %} {%endwhile%} ")
 
 macro compileTemplateStr3*(str: untyped): untyped =
   var body = newStmtList()

@@ -1,5 +1,6 @@
 discard """
   joinable: false
+  disabled: true
 """
 ## insert is useful when you want to embed a document into another,
 ## for example for documentation, or blogs that show a script in html but also want to make it downloadable,
