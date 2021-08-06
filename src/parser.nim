@@ -31,8 +31,6 @@ type
       evalBody: string
     of NImport:
       importBody: string
-    # of NElse:
-    #   elseBody: seq[NwtNode]
     else: discard
 
 type IfState {.pure.} = enum
@@ -41,7 +39,8 @@ type IfState {.pure.} = enum
 # First step nodes
 type
   FsNodeKind = enum
-    FsIf, FsStr, FsEval, FsElse, FsElif, FsEndif, FsFor, FsEndfor, FsVariable, FsWhile, FsEndWhile, FsImport
+    FsIf, FsStr, FsEval, FsElse, FsElif, FsEndif, FsFor,
+    FsEndfor, FsVariable, FsWhile, FsEndWhile, FsImport, FsBlock, FsExtends
   FSNode = object
     kind: FsNodeKind
     value: string
@@ -84,6 +83,10 @@ proc parseFirstStep*(tokens: seq[Token]): seq[FSNode] =
         result.add FSNode(kind: FsEndWhile, value: suf)
       of "importnwt":
         result.add FSNode(kind: FsImport, value: suf)
+      of "block":
+        result.add FSNode(kind: FsBlock, value: suf)
+      of "extends":
+        result.add FSNode(kind: FsExtends, value: suf)
       else:
         result.add FSNode(kind: FsEval, value: token.value)
     elif token.tokenType == NwtString:
@@ -91,20 +94,9 @@ proc parseFirstStep*(tokens: seq[Token]): seq[FSNode] =
     elif token.tokenType == NwtVariable:
       result.add FSNode(kind: FsVariable, value: token.value)
     else:
-      echo "Not catched:", token
+      echo "[FS] Not catched:", token
     # elif token.tokenType == NwtComment:
     #   result.add FSNode(kind: FsComment, value: token.value)
-
-# template addCorrectNode(container: seq[NwtNode], elem: FsNode) =
-#   case elem.kind
-#   of FsStr:
-#     container.add NwtNode(kind: NStr, strBody: elem.value) # TODO choose right NwtNodeKind
-#   of FsVariable:
-#     container.add NwtNode(kind: NVariable, variableBody: elem.value) # TODO choose right NwtNodeKind
-#   else:
-#     echo fmt"{elem.kind} not supported yet"
-
-# proc parseSsElif(fsTokens: seq[FsNode], pos: var int): NwtNode =
 
 
 proc parseSsIf(fsTokens: seq[FsNode], pos: var int): NwtNode =
@@ -186,17 +178,17 @@ proc parseSecondStepOne(fsTokens: seq[FSNode], pos: var int): NwtNode =
     elif fsToken.kind == FsEval:
       return NwtNode(kind: NEval, evalBody: fsToken.value) # TODO choose right NwtNodeKind
     else:
-      echo "NOT IMPL: ", fsToken
+      echo "[SS] NOT IMPL: ", fsToken
 
 
 proc includeNwt(nodes: var seq[NwtNode], path: string) {.compileTime.} =
-    var str = staticRead(path.strip(true, true, {'"'}) )
-    var lexerTokens = toSeq(nwtTokenize(str))
-    var firstStepTokens = parseFirstStep(lexerTokens)
-    var pos = 0
-    var secondsStepTokens = parseSecondStep(firstStepTokens, pos)
-    for secondStepToken in secondsStepTokens:
-      nodes.add secondStepToken
+  var str = staticRead(path.strip(true, true, {'"'}) )
+  var lexerTokens = toSeq(nwtTokenize(str))
+  var firstStepTokens = parseFirstStep(lexerTokens)
+  var pos = 0
+  var secondsStepTokens = parseSecondStep(firstStepTokens, pos)
+  for secondStepToken in secondsStepTokens:
+    nodes.add secondStepToken
 
 proc parseSecondStep*(fsTokens: seq[FSNode], pos: var int): seq[NwtNode] =
   while pos < fsTokens.len:
@@ -313,6 +305,7 @@ macro compileTemplateStr*(str: typed): untyped =
   var firstStepTokens = parseFirstStep(lexerTokens)
   var pos = 0
   var secondsStepTokens = parseSecondStep(firstStepTokens, pos)
+  when defined(dumpNwtAst): echo secondsStepTokens
   result = newStmtList()
   for token in secondsStepTokens:
     result.add astAstOne(token)
@@ -327,6 +320,7 @@ macro compileTemplateFile*(path: static string): untyped =
   var firstStepTokens = parseFirstStep(lexerTokens)
   var pos = 0
   var secondsStepTokens = parseSecondStep(firstStepTokens, pos)
+  when defined(dumpNwtAst): echo secondsStepTokens
   result = newStmtList()
   for token in secondsStepTokens:
     result.add astAstOne(token)
