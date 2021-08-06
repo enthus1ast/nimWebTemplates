@@ -1,5 +1,5 @@
 discard """
-  joinable: true
+  joinable: false
 """
 ## This is stuff normally not done in a template engine
 ## but *we can*, since we evaluate to nim code, so we test (maybe its useful ;) )

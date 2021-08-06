@@ -38,7 +38,7 @@ type
 type IfState {.pure.} = enum
   InThen, InElif, InElse
 
-## First step nodes
+# First step nodes
 type
   FsNodeKind = enum
     FsIf, FsStr, FsEval, FsElse, FsElif, FsEndif, FsFor, FsEndfor, FsVariable, FsWhile, FsEndWhile, FsImport
@@ -46,7 +46,11 @@ type
     kind: FsNodeKind
     value: string
 
-proc parseSecondStep(fsTokens: seq[FSNode], pos: var int): seq[NwtNode]
+# Forward decleration
+proc parseSecondStep*(fsTokens: seq[FSNode], pos: var int): seq[NwtNode]
+proc parseSecondStepOne(fsTokens: seq[FSNode], pos: var int): NwtNode
+proc astAstOne(token: NwtNode): NimNode
+proc astAst(tokens: seq[NwtNode]): seq[NimNode]
 
 func splitStmt(str: string): tuple[pref: string, suf: string] {.inline.} =
   ## the prefix is normalized (transformed to lowercase)
@@ -56,7 +60,7 @@ func splitStmt(str: string): tuple[pref: string, suf: string] {.inline.} =
   result.pref = toLowerAscii(pref)
   result.suf = str[pos..^1]
 
-proc parseFirstStep(tokens: seq[Token]): seq[FSNode] =
+proc parseFirstStep*(tokens: seq[Token]): seq[FSNode] =
   result = @[]
   for token in tokens:
     if token.tokenType == NwtEval:
@@ -91,57 +95,42 @@ proc parseFirstStep(tokens: seq[Token]): seq[FSNode] =
     # elif token.tokenType == NwtComment:
     #   result.add FSNode(kind: FsComment, value: token.value)
 
-
-template addCorrectNode(container: seq[NwtNode], elem: FsNode) =
-  case elem.kind
-  of FsStr:
-    container.add NwtNode(kind: NStr, strBody: elem.value) # TODO choose right NwtNodeKind
-  of FsVariable:
-    container.add NwtNode(kind: NVariable, variableBody: elem.value) # TODO choose right NwtNodeKind
-  else:
-    echo fmt"{elem.kind} not supported yet"
+# template addCorrectNode(container: seq[NwtNode], elem: FsNode) =
+#   case elem.kind
+#   of FsStr:
+#     container.add NwtNode(kind: NStr, strBody: elem.value) # TODO choose right NwtNodeKind
+#   of FsVariable:
+#     container.add NwtNode(kind: NVariable, variableBody: elem.value) # TODO choose right NwtNodeKind
+#   else:
+#     echo fmt"{elem.kind} not supported yet"
 
 # proc parseSsElif(fsTokens: seq[FsNode], pos: var int): NwtNode =
 
-proc parseSecondStepOne(fsTokens: seq[FSNode], pos: var int): NwtNode
-
 
 proc parseSsIf(fsTokens: seq[FsNode], pos: var int): NwtNode =
-  # echo "parseSSif"
   var elem: FsNode = fsTokens[pos] # first is the if that we got called about
-  # assert elem.kind == FsIf
   result = NwtNode(kind: NwtNodeKind.NIf)
   result.ifStmt = elem.value
   pos.inc # skip the if
   var ifstate = IfState.InThen
   while pos < fsTokens.len:
     elem = fsTokens[pos]
-    # echo fmt"parseSsIf: {pos} {elem}"
-
     if elem.kind == FsIf:
       # echo "open new if"
       # TODO open a new if; where to put the parsed node from the recursive if parser??
       #### TODO pack this into func/template
       if ifState == IfState.InThen:
         result.nnThen.add parseSecondStep(fsTokens, pos) ## TODO should be parseSecondStep
-        # result.nnThen.add parseSsIf(fsTokens, pos) ## TODO should be parseSecondStep
       if ifState == IfState.InElse:
         result.nnElse.add parseSecondStep(fsTokens, pos) ## TODO should be parseSecondStep
-        # result.nnElse.add parseSsIf(fsTokens, pos) ## TODO should be parseSecondStep
       if ifState == IfState.InElif:
         result.nnElif[^1].elifBody.add parseSecondStep(fsTokens, pos) ## TODO should be parseSecondStep
-        # result.nnElif[^1].elifBody.add parseSsIf(fsTokens, pos) ## TODO should be parseSecondStep
-      ####
-
     elif elem.kind == FsElif:
-      # echo "put to elif"
       ifstate = IfState.InElif
       result.nnElif.add NwtNode(kind: NElif, elifStmt: elem.value)
     elif elem.kind == FsElse:
-      # echo "put to else"
       ifstate = IfState.InElse
     elif elem.kind == FsEndif:
-      # pos.inc
       break
     else:
       if ifState == IfState.InThen:
@@ -150,8 +139,6 @@ proc parseSsIf(fsTokens: seq[FsNode], pos: var int): NwtNode =
         result.nnElse &= parseSecondStepOne(fsTokens, pos)
       if ifState == IfState.InElif:
         result.nnElif[^1].elifBody &= parseSecondStepOne(fsTokens, pos)
-        # var elifnode = NwtNode(kind: NElif)
-        # result.nnElif.add NwtNode(kind: NStr, strBody: elem.value) # TODO choose right NwtNodeKind
     pos.inc
 
 
@@ -184,8 +171,8 @@ proc parseSsFor(fsTokens: seq[FsNode], pos: var int): NwtNode =
 proc parseSecondStepOne(fsTokens: seq[FSNode], pos: var int): NwtNode =
     let fsToken = fsTokens[pos]
 
-    # Compley Types
-    if fsToken.kind == FSif:  #or fsToken.kind == FSElif:
+    # Complex Types
+    if fsToken.kind == FSif:
       return parseSsIf(fsTokens, pos)
     elif fsToken.kind == FsWhile:
       return parseSsWhile(fsTokens, pos)
@@ -201,37 +188,30 @@ proc parseSecondStepOne(fsTokens: seq[FSNode], pos: var int): NwtNode =
     else:
       echo "NOT IMPL: ", fsToken
 
-proc astAstOne(token: NwtNode): NimNode
 
-import os
-proc parseSecondStep(fsTokens: seq[FSNode], pos: var int): seq[NwtNode] =
+proc includeNwt(nodes: var seq[NwtNode], path: string) {.compileTime.} =
+    var str = staticRead(path.strip(true, true, {'"'}) )
+    var lexerTokens = toSeq(nwtTokenize(str))
+    var firstStepTokens = parseFirstStep(lexerTokens)
+    var pos = 0
+    var secondsStepTokens = parseSecondStep(firstStepTokens, pos)
+    for secondStepToken in secondsStepTokens:
+      nodes.add secondStepToken
+
+proc parseSecondStep*(fsTokens: seq[FSNode], pos: var int): seq[NwtNode] =
   while pos < fsTokens.len:
-
     ## TODO TEST IF THIS IS GOOD HERE
     ## this is include
     let token = fsTokens[pos]
     if token.kind == FsImport:
-      # var str = staticRead(getAppDir() / token.value)
-      # var str = staticRead(getAppDir() / token.value)
-      # var str = staticRead( instantiationInfo().filename / token.value)
-      var str = staticRead( token.value.strip(true, true, {'"'}) )
-      var lexerTokens = toSeq(nwtTokenize(str))
-      var firstStepTokens = parseFirstStep(lexerTokens)
-      var pos = 0
-      var secondsStepTokens = parseSecondStep(firstStepTokens, pos)
-      # result = newStmtList()
-      for secondStepToken in secondsStepTokens:
-        result.add secondStepToken
-      # for token in secondsStepTokens:
-      #   result.add astAstOne(token)
-      ############# ^^^^^^^^^^^^^^^^^^^^^
+      result.includeNwt(token.value)
     else:
       result &= parseSecondStepOne(fsTokens, pos)
     pos.inc # skip the current elem (test if the inner procs should forward)
 
-proc astAst(tokens: seq[NwtNode]): seq[NimNode]
 
-proc astVariable(token: NwtNode): NimNode =
+
+func astVariable(token: NwtNode): NimNode =
   return nnkStmtList.newTree(
     nnkInfix.newTree(
       newIdentNode("&="),
@@ -243,7 +223,7 @@ proc astVariable(token: NwtNode): NimNode =
     )
   )
 
-proc astStr(token: NwtNode): NimNode =
+func astStr(token: NwtNode): NimNode =
   return nnkStmtList.newTree(
     nnkInfix.newTree(
       newIdentNode("&="),
@@ -252,10 +232,10 @@ proc astStr(token: NwtNode): NimNode =
     )
   )
 
-proc astEval(token: NwtNode): NimNode =
+func astEval(token: NwtNode): NimNode =
   return parseStmt(token.evalBody)
 
-proc astComment(token: NwtNode): NimNode =
+func astComment(token: NwtNode): NimNode =
   return newCommentStmtNode(token.commentBody)
 
 proc astFor(token: NwtNode): NimNode =
@@ -356,13 +336,7 @@ macro compileTemplateFile*(path: static string): untyped =
 #     var result = ""
 #     compileTemplateStr("{{foo}}baa{% idx.inc() %}{# a comment #}{%if foo() == baa()%}baa{{BAA}}{%elif true == true%}elif branch{%elif false == false%}elif branch2{%else%}ELSEBRANCH{%endif%}    {%for idx in 0..10%}{%if true%}{{TRAA}}{%endif%}{%endfor%}   {% var loop = 0%}{%while loop < 10%} {% loop.inc %} {%endwhile%} ")
 
-import json
-proc prettyNwt(str: string): string =
-  var lexerTokens = toSeq(nwtTokenize(str))
-  var firstStepTokens = parseFirstStep(lexerTokens)
-  var pos = 0
-  var secondsStepTokens = parseSecondStep(firstStepTokens, pos)
-  return (%* secondsStepTokens).pretty()
+
 
 
 when isMainModule:
