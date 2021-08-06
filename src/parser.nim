@@ -4,7 +4,8 @@ import nwtTokenizer, sequtils, parseutils
 
 type
   NwtNodeKind = enum
-    NStr, NComment, NIf, NElif, NElse, NWhile, NFor, NVariable, NEval, NImport
+    NStr, NComment, NIf, NElif, NElse, NWhile, NFor,
+    NVariable, NEval, NImport, NBlock, NExtends
   NwtNode = object
     case kind: NwtNodeKind
     of NStr:
@@ -31,6 +32,11 @@ type
       evalBody: string
     of NImport:
       importBody: string
+    of NBlock:
+      blockName: string
+      blockBody: seq[NwtNode]
+    of NExtends:
+      extendsPath: string
     else: discard
 
 type IfState {.pure.} = enum
@@ -40,10 +46,21 @@ type IfState {.pure.} = enum
 type
   FsNodeKind = enum
     FsIf, FsStr, FsEval, FsElse, FsElif, FsEndif, FsFor,
-    FsEndfor, FsVariable, FsWhile, FsEndWhile, FsImport, FsBlock, FsExtends
+    FsEndfor, FsVariable, FsWhile, FsEndWhile, FsImport, FsBlock, FsEndBlock, FsExtends
   FSNode = object
     kind: FsNodeKind
     value: string
+
+# TODO global vars must gone!
+# import tables
+# var gBlocks {.compileTime.}: Table[string, seq[NwtNode]]
+# var gExtends {.compileTime.}: Table[string, seq[NwtNode]]
+
+import os
+# template getScriptDir(): string =
+#   ## Helper for staticRead
+#   # parentDir(instantiationInfo(-1, true).filename)
+#   instantiationInfo(-1, true).filename
 
 # Forward decleration
 proc parseSecondStep*(fsTokens: seq[FSNode], pos: var int): seq[NwtNode]
@@ -85,6 +102,8 @@ proc parseFirstStep*(tokens: seq[Token]): seq[FSNode] =
         result.add FSNode(kind: FsImport, value: suf)
       of "block":
         result.add FSNode(kind: FsBlock, value: suf)
+      of "endblock":
+        result.add FSNode(kind: FsEndBlock, value: suf)
       of "extends":
         result.add FSNode(kind: FsExtends, value: suf)
       else:
@@ -153,12 +172,48 @@ proc parseSsFor(fsTokens: seq[FsNode], pos: var int): NwtNode =
   result.forStmt = elem.value
   while pos < fsTokens.len:
     pos.inc # skip the while
-    echo fsTokens[pos .. ^1]
+    # echo fsTokens[pos .. ^1]
     elem = fsTokens[pos]
     if elem.kind == FsEndFor:
       break
     else:
       result.forBody &= parseSecondStepOne(fsTokens, pos)
+
+proc parseSsBlock(fsTokens: seq[FsNode], pos: var int): NwtNode =
+  var elem: FsNode = fsTokens[pos]
+  let blockName = elem.value
+  result = NwtNode(kind: NwtNodeKind.NBlock, blockName: blockName)
+  echo fmt"BLOCK START: '{elem.value}' @ {pos}"
+  while pos < fsTokens.len:
+    pos.inc # skip the block
+    elem = fsTokens[pos]
+    if elem.kind == FsEndBlock:
+      echo fmt"BLOCK END: '{elem.value}' @ {pos}"
+      # pos.inc # skip the endblock
+      break
+    else:
+      result.blockBody &= parseSecondStepOne(fsTokens, pos)
+  echo result
+
+proc parseSsExtends(fsTokens: seq[FsNode], pos: var int): NwtNode =
+  var elem: FsNode = fsTokens[pos]
+  let extendsPath = elem.value.strip(true, true, {'"'})
+  result = NwtNode(kind: NwtNodeKind.NExtends, extendsPath: extendsPath)
+  echo fmt"EXTENDS: '{extendsPath}' @ {pos}"
+
+  # TODO this must be in a proc (called often in this parser)
+  # var str = staticRead(extendsPath)
+  # var extendedTemplate: seq[NwtNode] = @[]
+  # var lexerTokens = toSeq(nwtTokenize(str))
+  # var firstStepTokens = parseFirstStep(lexerTokens)
+  # var pos = 0
+  # var secondsStepTokens = parseSecondStep(firstStepTokens, pos)
+  # for token in secondsStepTokens:
+  #   extendedTemplate.add token
+  # gExtends[extendsPath] = extendedTemplate
+  ############
+
+  return NwtNode(kind: NExtends, extendsPath: extendsPath)
 
 proc parseSecondStepOne(fsTokens: seq[FSNode], pos: var int): NwtNode =
     let fsToken = fsTokens[pos]
@@ -177,12 +232,22 @@ proc parseSecondStepOne(fsTokens: seq[FSNode], pos: var int): NwtNode =
       return NwtNode(kind: NVariable, variableBody: fsToken.value) # TODO choose right NwtNodeKind
     elif fsToken.kind == FsEval:
       return NwtNode(kind: NEval, evalBody: fsToken.value) # TODO choose right NwtNodeKind
+    elif fsToken.kind == FsBlock:
+      return parseSsBlock(fsTokens, pos)
+    elif fsToken.kind == FsExtends:
+      return parseSsExtends(fsTokens, pos)
     else:
       echo "[SS] NOT IMPL: ", fsToken
 
 
 proc includeNwt(nodes: var seq[NwtNode], path: string) {.compileTime.} =
-  var str = staticRead(path.strip(true, true, {'"'}) )
+  debugEcho "FOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO"
+  let basePath = staticExec("pathHelper.exe")
+  echo "BASE PATH ========:", basePath
+  # var str = staticRead(path.strip(true, true, {'"'}) ) # TODO the static path is a problem...
+  # var str = staticRead(basePath / path.strip(true, true, {'"'}) )
+  var str = staticRead("asdjfaklsdjf")
+
   var lexerTokens = toSeq(nwtTokenize(str))
   var firstStepTokens = parseFirstStep(lexerTokens)
   var pos = 0
@@ -191,11 +256,15 @@ proc includeNwt(nodes: var seq[NwtNode], path: string) {.compileTime.} =
     nodes.add secondStepToken
 
 proc parseSecondStep*(fsTokens: seq[FSNode], pos: var int): seq[NwtNode] =
+  echo "parseSecondStep #########################"
   while pos < fsTokens.len:
     ## TODO TEST IF THIS IS GOOD HERE
     ## this is include
     let token = fsTokens[pos]
+    echo token.kind
     if token.kind == FsImport:
+      # pos.inc
+      echo "HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH"
       result.includeNwt(token.value)
     else:
       result &= parseSecondStepOne(fsTokens, pos)
@@ -293,8 +362,28 @@ proc astAstOne(token: NwtNode): NimNode =
     return astFor(token)
   elif token.kind == NWhile:
     return astWhile(token)
+
+  elif token.kind == NExtends:
+    return parseStmt("discard")
+  elif token.kind == NBlock:
+    # for blockNode in gBlocks[token.value]:
+    return parseStmt("discard")
+
+  else:
+    raise newException(ValueError, "cannot convert to ast:" & $token.kind)
+    discard
   # elif token.kind == NImport:
   #   return
+
+# proc astAst(tokens: seq[NwtNode]): seq[NimNode] =
+#   for token in tokens:
+#     echo "---token:", token
+#     if token.kind == NBlock and gBlocks.hasKey(token.blockName):
+#       for blockToken in gBlocks[token.blockName]:
+#         echo "blockToken##################:", blockToken
+#         result.add astAstOne(blockToken)
+#     else:
+#       result.add astAstOne(token)
 
 proc astAst(tokens: seq[NwtNode]): seq[NimNode] =
   for token in tokens:
@@ -310,6 +399,8 @@ macro compileTemplateStr*(str: typed): untyped =
   for token in secondsStepTokens:
     result.add astAstOne(token)
 
+# proc parseNwtFile(path)
+
 macro compileTemplateFile*(path: static string): untyped =
   let str = staticRead(path)
   # let pathn = newNimNode(nnkStrLit)
@@ -321,9 +412,45 @@ macro compileTemplateFile*(path: static string): untyped =
   var pos = 0
   var secondsStepTokens = parseSecondStep(firstStepTokens, pos)
   when defined(dumpNwtAst): echo secondsStepTokens
-  result = newStmtList()
-  for token in secondsStepTokens:
-    result.add astAstOne(token)
+
+  ## TODO extend must be the first token, but
+  ## strings can come before extend (for documentation purpose)
+  if secondsStepTokens[0].kind == NExtends:
+    echo "===== THIS TEMPLATE EXTENDS ====="
+    # Load master template
+    let masterStr = staticRead( parentDir(path) / secondsStepTokens[0].extendsPath)
+    var masterLexerTokens = toSeq(nwtTokenize(masterStr))
+    var masterFirstStepTokens = parseFirstStep(masterLexerTokens)
+    var masterPos = 0
+    var masterSecondsStepTokens = parseSecondStep(masterFirstStepTokens, masterPos)
+
+    # Load THIS template (above)
+
+    var toRender: seq[NwtNode] = @[]
+    for masterSecondsStepToken in masterSecondsStepTokens:
+      if masterSecondsStepToken.kind == NBlock:
+        ## search the other template and put the stuff in toRender
+        for secondsStepToken in secondsStepTokens[1..^1]:
+          if secondsStepToken.kind == NExtends: raise newException(ValueError, "only one extend is allowed!")
+          if secondsStepToken.kind == NBlock and secondsStepToken.blockName == masterSecondsStepToken.blockName:
+            for blockToken in secondsStepToken.blockBody:
+              toRender.add blockToken
+
+      else:
+        toRender.add masterSecondsStepToken
+
+
+    result = newStmtList()
+    for token in toRender:
+      result.add astAstOne(token)
+    # insert THIS template to the masters blocks
+    # render the whole template
+  else:
+    result = newStmtList()
+    for token in secondsStepTokens:
+      result.add astAstOne(token)
+  # echo "gExtends: ", gExtends
+  # echo "gBlocks: ", gBlocks
 
 # when isMainModule:
 #   expandMacros:
