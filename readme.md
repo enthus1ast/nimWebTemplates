@@ -1,3 +1,17 @@
+nimja template engine
+
+
+
+
+BUILD WITH:
+--experimental:vmopsDanger
+
+TODO
+=====
+- [] allow extends not only on first line
+- [] transform compile procs to iterators (for streaming templates)
+- [] streaming templates
+
 nwt is a little template engine inspired by jinja2.
 
 it do not enforce any web framework so use whatever you like!
@@ -6,7 +20,8 @@ rudimentary freeze support with `freeze()`
 
 have a look at the other demos!
 
-if you feeling fancy today have a special look at the `dbdriven` database example and 
+if you feeling fancy today have a spe
+cial look at the `dbdriven` database example and
 my little flatfile database [flatdb](https://github.com/enthus1ast/flatdb) for nim-lang
 
 
@@ -48,7 +63,7 @@ base.html
 
 	<body>
 		<div>
-			{{self.menu}} 
+			{{self.menu}}
 
 		</div>
 
@@ -61,7 +76,7 @@ base.html
 		</div>
 
 		<div>
-			<hr> 
+			<hr>
 			Made with nim<br>
 			{{self.footer}}
 		</div>
@@ -79,8 +94,8 @@ index.html
 {%set title "Some index and more"%}
 
 {%block content%}
-	Lorem ipsum dolor sit amet, consectetur adipisicing elit. 
-	Ab, sint repellendus iure similique ipsa unde eos est nam numquam, laborum, sit ipsum voluptates modi impedit doloremque. 
+	Lorem ipsum dolor sit amet, consectetur adipisicing elit.
+	Ab, sint repellendus iure similique ipsa unde eos est nam numquam, laborum, sit ipsum voluptates modi impedit doloremque.
 	Fugiat, obcaecati delectus accusantium.
 {%endblock%}
 
@@ -139,16 +154,16 @@ var server = newAsyncHttpServer()
 proc cb(req: Request) {.async.} =
   let res = req.url.path
 
-  case res 
+  case res
   of "/", "/index.html":
-    await req.respond(Http200, templates.renderTemplate("index.html"))  
+    await req.respond(Http200, templates.renderTemplate("index.html"))
   of "/about.html":
     await req.respond(Http200, templates.renderTemplate("about.html"))
   of "/stats.html":
     var context = %* {"title": "some variables from nim", "foo": "Foo!", "baa": "Baa!"}
-    await req.respond(Http200, templates.renderTemplate("stats.html", context))  
+    await req.respond(Http200, templates.renderTemplate("stats.html", context))
   else:
     await req.respond(Http404, "not found")
 
-waitFor server.serve(Port(8080), cb) 
+waitFor server.serve(Port(8080), cb)
 ```

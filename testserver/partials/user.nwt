@@ -1,0 +1,1 @@
+User: {{user.name}}(len:{{user.name.len}}) {{user.lastname}}(len:{{user.lastname.len}}) age: {{user.age}}

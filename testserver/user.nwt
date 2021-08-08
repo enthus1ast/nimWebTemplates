@@ -1,0 +1,13 @@
+{% extends master.nwt%}
+
+{%block content%}
+<h1>Details of user: {{idx}} {{user.name}}</h1>
+
+  {% importnwt "./partials/user.nwt" %}
+
+
+{%endblock%}
+
+
+
+{# {% block footer %}{% var user = users.sample() %}This INDEX was presented by.... {% importnwt "./partials/user.nwt" %} {% endblock %} #}

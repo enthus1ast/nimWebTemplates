@@ -1,3 +1,12 @@
+# {.push:experimental:vmopsDanger.}
+# {.experimental: "vmopsDanger".}
+
+
+# when not defined(vmopsDanger):
+#   echo "compile with: --experimental:vmopsDanger!"
+#   quit()
+
+
 import strformat, strutils
 import macros
 import nwtTokenizer, sequtils, parseutils
@@ -57,16 +66,18 @@ type
 # var gExtends {.compileTime.}: Table[string, seq[NwtNode]]
 
 import os
-# template getScriptDir(): string =
-#   ## Helper for staticRead
-#   # parentDir(instantiationInfo(-1, true).filename)
-#   instantiationInfo(-1, true).filename
+template getScriptDir(): string =
+  ## Helper for staticRead
+  # parentDir(instantiationInfo(-1, true).filename)
+  instantiationInfo(-1, true).filename
 
 # Forward decleration
 proc parseSecondStep*(fsTokens: seq[FSNode], pos: var int): seq[NwtNode]
-proc parseSecondStepOne(fsTokens: seq[FSNode], pos: var int): NwtNode
+proc parseSecondStepOne(fsTokens: seq[FSNode], pos: var int): seq[NwtNode]
 proc astAstOne(token: NwtNode): NimNode
 proc astAst(tokens: seq[NwtNode]): seq[NimNode]
+proc includeNwt(nodes: var seq[NwtNode], path: string) {.compileTime.}
+
 
 func splitStmt(str: string): tuple[pref: string, suf: string] {.inline.} =
   ## the prefix is normalized (transformed to lowercase)
@@ -215,7 +226,10 @@ proc parseSsExtends(fsTokens: seq[FsNode], pos: var int): NwtNode =
 
   return NwtNode(kind: NExtends, extendsPath: extendsPath)
 
-proc parseSecondStepOne(fsTokens: seq[FSNode], pos: var int): NwtNode =
+converter singleNwtNodeToSeq(nwtNode: NwtNode): seq[NwtNode] =
+  return @[nwtNode]
+
+proc parseSecondStepOne(fsTokens: seq[FSNode], pos: var int): seq[NwtNode] =
     let fsToken = fsTokens[pos]
 
     # Complex Types
@@ -236,17 +250,26 @@ proc parseSecondStepOne(fsTokens: seq[FSNode], pos: var int): NwtNode =
       return parseSsBlock(fsTokens, pos)
     elif fsToken.kind == FsExtends:
       return parseSsExtends(fsTokens, pos)
+    elif fsToken.kind == FsImport:
+        includeNwt(result, fsToken.value)
+
     else:
       echo "[SS] NOT IMPL: ", fsToken
 
 
 proc includeNwt(nodes: var seq[NwtNode], path: string) {.compileTime.} =
+  {.push experimental: "vmopsDanger".} # should work in devel!
   debugEcho "FOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO"
-  let basePath = staticExec("pathHelper.exe")
+  # let basePath = staticExec("""pathHelper.exe""")
+
+  # must be build with --experimental:vmopsDanger
+  const basePath = getCurrentDir() # staticExec("pwd").strip().strip(leading = true, chars = {'/'})
   echo "BASE PATH ========:", basePath
   # var str = staticRead(path.strip(true, true, {'"'}) ) # TODO the static path is a problem...
-  # var str = staticRead(basePath / path.strip(true, true, {'"'}) )
-  var str = staticRead("asdjfaklsdjf")
+
+  #### TODO AAAARGH this is so annoying....
+  var str = staticRead( basePath  / path.strip(true, true, {'"'}) )
+  # var str = staticRead("asdjfaklsdjf")
 
   var lexerTokens = toSeq(nwtTokenize(str))
   var firstStepTokens = parseFirstStep(lexerTokens)
@@ -262,12 +285,13 @@ proc parseSecondStep*(fsTokens: seq[FSNode], pos: var int): seq[NwtNode] =
     ## this is include
     let token = fsTokens[pos]
     echo token.kind
-    if token.kind == FsImport:
-      # pos.inc
-      echo "HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH"
-      result.includeNwt(token.value)
-    else:
-      result &= parseSecondStepOne(fsTokens, pos)
+    # if token.kind == FsImport:
+    #   # pos.inc
+    #   # TODO this whole block could be removed??????
+    #   echo "HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH"
+    #   result.includeNwt(token.value)
+    # else:
+    result &= parseSecondStepOne(fsTokens, pos)
     pos.inc # skip the current elem (test if the inner procs should forward)
 
 
@@ -375,15 +399,6 @@ proc astAstOne(token: NwtNode): NimNode =
   # elif token.kind == NImport:
   #   return
 
-# proc astAst(tokens: seq[NwtNode]): seq[NimNode] =
-#   for token in tokens:
-#     echo "---token:", token
-#     if token.kind == NBlock and gBlocks.hasKey(token.blockName):
-#       for blockToken in gBlocks[token.blockName]:
-#         echo "blockToken##################:", blockToken
-#         result.add astAstOne(blockToken)
-#     else:
-#       result.add astAstOne(token)
 
 proc astAst(tokens: seq[NwtNode]): seq[NimNode] =
   for token in tokens:
@@ -399,7 +414,6 @@ macro compileTemplateStr*(str: typed): untyped =
   for token in secondsStepTokens:
     result.add astAstOne(token)
 
-# proc parseNwtFile(path)
 
 macro compileTemplateFile*(path: static string): untyped =
   let str = staticRead(path)

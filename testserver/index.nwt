@@ -1,0 +1,25 @@
+{% extends master.nwt%}
+
+{% block unusedBlock %} {% endblock %}
+
+{%block content%}
+  {# {{aVarFromMaster}}<br> #}
+  {% var idx = 0 %}
+  {# {% while true %} #}
+    {% for (ii, item) in ["https://google.de", "https://blog.fefe.de"].pairs() %}
+      {{ii}} <a href="{{item}}">This is a link to: {{item}}</a><br>
+    {% endfor %}
+    {% idx.inc() %}
+    {# {% if (idx > 10_000) %}{% break %}{% endif %} #}
+  {# {% endwhile %} #}
+<h1>Members</h1>
+<ul>
+    {% for (idx,user) in users.pairs %}
+       <a href="/users/{{idx}}">{% importnwt "./partials/user.nwt" %}</a><br>
+    {% endfor %}
+</ul>
+{%endblock%}
+
+
+
+{% block footer %}{% var user = users.sample() %}This INDEX was presented by.... {% importnwt "./partials/user.nwt" %} {% endblock %}
