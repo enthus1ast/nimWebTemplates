@@ -1,3 +1,12 @@
+nimWebTemplates is ABADONNED and DEPRECATED
+==========
+
+for a better template engine use: [enthus1ast/nimja](https://github.com/enthus1ast/nimja)
+
+
+readme
+======
+
 nwt is a little template engine inspired by jinja2.
 
 (warning: it lacks control statements like `if` `while` etc..)
